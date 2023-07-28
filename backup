@@ -1,35 +1,21 @@
-from tkinter import *
-from tkinter import ttk
+guest_list_frame = ttk.Frame(master=self)
+        guest_list_frame.configure(borderwidth=10, relief='groove')
+        guest_items = tk.Variable()
+        ttk.Label(guest_list_frame,
+                  text="Guests List",
+                  font="Arial").pack()
+        self.guest_lists = tk.Listbox(guest_list_frame,
+                                      listvariable=guest_items
+                                      )
 
-root_window = Tk()
-root_window.title('Hotel Management')
-root_window.geometry('640x480')
-tab_menu = ttk.Notebook(root_window)
+        # Retrieves Guests
+        self.populate_lists()
+        self.guest_lists.pack(expand=True, fill='y')
 
-# Tab Menus Initialization
-guests_tab = Frame(tab_menu, highlightbackground="black", highlightthickness=1)
-rooms_tab = Frame(tab_menu)
-employees_tab = Frame(tab_menu)
-schedule_tab = Frame(tab_menu)
+        # Scrollbar
+        x_list_scrollbar = tk.Scrollbar(guest_list_frame, orient=tk.HORIZONTAL)
+        self.guest_lists.config(xscrollcommand=x_list_scrollbar.set)
+        x_list_scrollbar.config(command=self.guest_lists.xview)
+        x_list_scrollbar.pack(fill='x')
 
-tab_menu.add(guests_tab, text='Guests')
-tab_menu.add(rooms_tab, text='Rooms')
-tab_menu.add(employees_tab, text='Employees')
-tab_menu.add(schedule_tab, text='Schedules')
-tab_menu.grid(expand=True, fill='both')
-
-guests_list_frame = Frame(guests_tab)
-guests_list_label = Label(guests_list_frame,text="Guests List", font="Arial")
-guest_lists = Listbox(guests_list_frame)
-guests_list_label.pack(side=LEFT)
-guest_lists.pack(side=LEFT, fill=Y)
-
-
-
-
-Label(rooms_tab, text='Rooms table will be here', width=100, height=30).pack()
-Label(employees_tab, text='Employees table will be here', width=100, height=30).pack()
-Label(schedule_tab, text='Schedules table will be here', width=100, height=30).pack()
-
-root_window.eval('tk::PlaceWindow . center')
-root_window.mainloop()
+        return guest_list_frame

@@ -37,49 +37,49 @@ class GuestTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
+        self.guests_treeview = None
+
         # Variables Initialization
-        self.guest_lists = None
-        self.guest_room_number = None
-        self.guest_phone_number = None
-        self.guest_email = None
-        self.guest_last_name = None
-        self.guest_id_variable = None
-        self.guest_first_name = None
+        self.guest_id_variable = tk.StringVar()
+        self.guest_firstname_variable = tk.StringVar()
+        self.guest_lastname_variable = tk.StringVar()
+        self.guest_email_variable = tk.StringVar()
+        self.guest_phone_number_variable = tk.StringVar()
+        self.guest_room_number_variable = tk.StringVar()
 
-        self.id_entry = None
-        self.first_name_entry = None
-        self.last_name_entry = None
+        self.guest_id_entry = None
+        self.guest_firstname_entry = None
+        self.guest_lastname_entry = None
+        self.guest_email_entry = None
+        self.guest_phone_number_entry = None
+        self.guest_room_number_entry = None
 
-        self.email_entry = None
-        self.phone_entry = None
-        self.room_entry = None
-
-        self.guests_list().pack(side='left', fill='y', padx=5, pady=5)
-        self.guests_widgets().pack(side='left', expand=True, fill='both', padx=5, pady=5)
+        self.guests_list(self).pack(side='left', fill='y')
+        self.guests_widgets().pack(side='left', expand=True, fill='both')
         self.pack()
 
-    def guests_list(self):
-        guest_list_frame = ttk.Frame(master=self)
-        guest_list_frame.configure(borderwidth=10, relief='groove')
-        guest_items = tk.Variable()
-        ttk.Label(guest_list_frame,
-                  text="Guests List",
-                  font="Arial").pack()
-        self.guest_lists = tk.Listbox(guest_list_frame,
-                                      listvariable=guest_items
-                                      )
+    def guests_list(self, frame):
+        guests_table_frame = ttk.Frame(master=frame)
+        guests_table_frame.configure(borderwidth=10, relief='groove')
+        self.guests_treeview = ttk.Treeview(
+            master=guests_table_frame,
+            columns=('guest_id', 'first_name', 'last_name'),
+            show='headings',
+            selectmode='browse',
+            height=50
+        )
 
-        # Retrieves Guests
-        self.populate_lists()
-        self.guest_lists.pack(expand=True, fill='y')
+        self.guests_treeview.heading('guest_id', text='Guest ID')
+        self.guests_treeview.heading('first_name', text='First Name')
+        self.guests_treeview.heading('last_name', text='Last Name')
 
-        # Scrollbar
-        x_list_scrollbar = tk.Scrollbar(guest_list_frame, orient=tk.HORIZONTAL)
-        self.guest_lists.config(xscrollcommand=x_list_scrollbar.set)
-        x_list_scrollbar.config(command=self.guest_lists.xview)
-        x_list_scrollbar.pack(fill='x')
+        self.guests_treeview.column('guest_id', width=80)
+        self.guests_treeview.column('first_name', width=120)
+        self.guests_treeview.column('last_name', width=120)
 
-        return guest_list_frame
+        self.guests_treeview.pack(expand=True, fill='both')
+        self.populate_guests_list()
+        return guests_table_frame
 
     def guests_widgets(self):
         widgets_frame = ttk.Frame(master=self)
@@ -113,67 +113,82 @@ class GuestTab(ttk.Frame):
         return tools_frame
 
     def guest_details(self, frame):
-        details_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
-        details_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
-        details_frame.rowconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        guests_details_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
+        guests_details_frame.columnconfigure((0, 1, 2), weight=1, uniform='a')
+        guests_details_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
 
-        self.guest_id_variable = tk.StringVar()
-        self.guest_first_name = tk.StringVar()
-        self.guest_last_name = tk.StringVar()
-        self.guest_email = tk.StringVar()
-        self.guest_phone_number = tk.StringVar()
-        self.guest_room_number = tk.StringVar()
+        # Labels for Guests Details
+        tk.Label(guests_details_frame, text='Guest ID:').grid(row=0, column=0, sticky='nsew')
+        tk.Label(guests_details_frame, text='First Name:').grid(row=1, column=0, sticky='nsew')
+        tk.Label(guests_details_frame, text='Last Name:').grid(row=2, column=0, sticky='nsew')
+        tk.Label(guests_details_frame, text='Email:').grid(row=3, column=0, sticky='nsew')
+        tk.Label(guests_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
+        tk.Label(guests_details_frame, text='Room Number:').grid(row=5, column=0, sticky='nsew')
 
-        tk.Label(details_frame, text='Guest ID:').grid(row=0, columnspan=2, column=0, sticky='nsew')
-        self.id_entry = tk.Entry(details_frame, textvariable=self.guest_id_variable, state='disabled')
-        self.id_entry.grid(row=0, column=2, sticky='ew')
+        # Entries for Guest Details
+        self.guest_id_entry = tk.Entry(
+            guests_details_frame,
+            textvariable=self.guest_id_variable,
+            state='disabled'
+        )
+        self.guest_firstname_entry = tk.Entry(
+            guests_details_frame,
+            textvariable=self.guest_firstname_variable
+        )
+        self.guest_lastname_entry = tk.Entry(
+            guests_details_frame,
+            textvariable=self.guest_lastname_variable
+        )
+        self.guest_email_entry = tk.Entry(
+            guests_details_frame,
+            textvariable=self.guest_email_variable
+        )
+        self.guest_phone_number_entry = tk.Entry(
+            guests_details_frame,
+            textvariable=self.guest_phone_number_variable
+        )
+        self.guest_room_number_entry = tk.Entry(
+            guests_details_frame,
+            textvariable=self.guest_room_number_variable
+        )
 
-        tk.Label(details_frame, text='First Name:').grid(row=1, column=0, sticky='nsew')
-        self.first_name_entry = tk.Entry(details_frame, textvariable=self.guest_first_name)
-        self.first_name_entry.grid(row=1, column=1, sticky='ew')
+        # Placing the Entries
+        self.guest_id_entry.grid(row=0, column=1, sticky='ew')
+        self.guest_firstname_entry.grid(row=1, column=1, sticky='ew')
+        self.guest_lastname_entry.grid(row=2, column=1, sticky='ew')
+        self.guest_email_entry.grid(row=3, column=1, sticky='ew')
+        self.guest_phone_number_entry.grid(row=4, column=1, sticky='ew')
+        self.guest_room_number_entry.grid(row=5, column=1, sticky='ew')
 
-        tk.Label(details_frame, text='Last Name:').grid(row=1, column=2, sticky='nsew')
-        self.last_name_entry = tk.Entry(details_frame, textvariable=self.guest_last_name)
-        self.last_name_entry.grid(row=1, column=3, sticky='ew')
+        guests_details_frame.pack(expand=True, fill='both')
+        return guests_details_frame
 
-        tk.Label(details_frame, text='Email:').grid(row=2, column=0, sticky='nsew')
-        self.email_entry = tk.Entry(details_frame, textvariable=self.guest_email)
-        self.email_entry.grid(row=2, column=1, sticky='ew')
-
-        tk.Label(details_frame, text='Phone Number:').grid(row=2, column=2, sticky='nsew')
-        self.phone_entry = tk.Entry(details_frame, textvariable=self.guest_phone_number)
-        self.phone_entry.grid(row=2, column=3, sticky='ew')
-
-        tk.Label(details_frame, text='Room Number:').grid(row=3, column=0, sticky='nsew')
-        self.room_entry = tk.Entry(details_frame, textvariable=self.guest_room_number)
-        self.room_entry.grid(row=3, column=1, sticky='ew')
-
-        details_frame.pack(expand=True, fill='both')
-        return details_frame
-
-    def populate_lists(self):
-        guest_names = sql_connection.retrieve_guest_lists()
-        list_size = self.guest_lists.size()
-        index_count = list_size
-        for i in guest_names:
-            self.guest_lists.insert(index_count, f'{i[1]} {i[2]} ID:{i[0]}')
-            index_count = index_count + 1
+    def populate_guests_list(self):
+        guests = sql_connection.retrieve_guest_lists()
+        for i in guests:
+            if i[-1] == 0:
+                self.guests_treeview.insert(
+                    parent='',
+                    index=tk.END,
+                    iid=None,
+                    values=(i[0], i[1], i[2])
+                )
 
     def new_guest_button(self):
-        self.guest_id_variable = self.id_entry.get()
-        self.guest_lists.insert(1, self.guest_id_variable)
+        pass
 
     def open_guest_button(self):
-        guest_id = self.guest_lists.get(self.guest_lists.curselection())
-        guest_id = guest_id.split(":")
-        retrieved_guest_details = sql_connection.retrieve_a_guest(guest_id[1])
-        self.guest_id_variable.set(retrieved_guest_details[0])
-        self.guest_first_name.set(retrieved_guest_details[1])
-        self.guest_last_name.set(retrieved_guest_details[2])
-        self.guest_email.set(retrieved_guest_details[3])
-        self.guest_phone_number.set(retrieved_guest_details[4])
+        guest_index = self.guests_treeview.focus()
+        selected_guest = self.guests_treeview.item(guest_index)
+        retrieved_guest = sql_connection.retrieve_an_employee(selected_guest.get('values')[0])
 
-        del retrieved_guest_details
+        self.guest_id_variable.set(retrieved_guest[0])
+        self.guest_firstname_variable.set(retrieved_guest[1])
+        self.guest_lastname_variable.set(retrieved_guest[2])
+        self.guest_email_variable.set(retrieved_guest[3])
+        self.guest_phone_number_variable.set(retrieved_guest[4])
+
+        del retrieved_guest
 
 
 class RoomTab(ttk.Frame):
@@ -219,6 +234,10 @@ class RoomTab(ttk.Frame):
 
         self.rooms_treeview.heading('room_id', text='Room ID')
         self.rooms_treeview.heading('room_number', text='Room Number')
+
+        self.rooms_treeview.column('room_id', width=50)
+        self.rooms_treeview.column('room_number', width=50)
+
         self.rooms_treeview.pack(expand=True, fill='both')
 
         self.populate_room_table()
@@ -252,12 +271,6 @@ class RoomTab(ttk.Frame):
             command=self.delete_room_button
         ).pack(side='left', expand=True, fill='both', padx=2)
 
-        # tk.Button(
-        #     room_buttons_frame,
-        #     text='Assign Schedule',
-        #     command=self.assign_schedule_button
-        # ).pack(side='left', expand=True, fill='both', padx=2)
-
         room_buttons_frame.pack(fill='x')
         return room_buttons_frame
         pass
@@ -274,54 +287,48 @@ class RoomTab(ttk.Frame):
         self.room_availability_variable = tk.StringVar()
         self.room_managed_by_variable = tk.StringVar()
 
-        # Entry for Room ID
+        # Labels for Room
         tk.Label(room_details_frame, text='Room ID:').grid(row=0, columnspan=2, column=0, sticky='nsew')
+        tk.Label(room_details_frame, text='Room Name:').grid(row=1, column=0, sticky='nsew')
+        tk.Label(room_details_frame, text='Room Type:').grid(row=2, column=0, sticky='nsew')
+        tk.Label(room_details_frame, text='Room Price:').grid(row=3, column=0, sticky='nsew')
+        tk.Label(room_details_frame, text='Room Availability:').grid(row=4, column=0, sticky='nsew')
+        tk.Label(room_details_frame, text='Managed by: ').grid(row=5, column=0, sticky='nsew')
+
+        # Entries for Room
         self.room_id_entry = tk.Entry(
             room_details_frame,
             textvariable=self.room_id_variable,
             state='disabled'
         )
-        self.room_id_entry.grid(row=0, column=2, sticky='ew')
-
-        # Entry for Room Number
-        tk.Label(room_details_frame, text='Room Name:').grid(row=1, column=0, sticky='nsew')
         self.room_number_entry = tk.Entry(
             room_details_frame,
             textvariable=self.room_number_variable
         )
-        self.room_number_entry.grid(row=1, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Room Type
-        tk.Label(room_details_frame, text='Last Name:').grid(row=2, column=0, sticky='nsew')
         self.room_type_entry = tk.Entry(
             room_details_frame,
             textvariable=self.room_type_variable
         )
-        self.room_type_entry.grid(row=2, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Room Price
-        tk.Label(room_details_frame, text='Email:').grid(row=3, column=0, sticky='nsew')
         self.room_price_entry = tk.Entry(
             room_details_frame,
             textvariable=self.room_price_variable
         )
-        self.room_price_entry.grid(row=3, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Availability
-        tk.Label(room_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
         self.room_availability_entry = tk.Entry(
             room_details_frame,
             textvariable=self.room_availability_variable
         )
-        self.room_availability_entry.grid(row=4, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Maintenance
-        tk.Label(room_details_frame, text='Managed by: ').grid(row=5, column=0, sticky='nsew')
         self.room_managed_by_entry = tk.Label(
             room_details_frame,
             textvariable=self.room_managed_by_variable
         )
-        self.room_managed_by_entry.grid(row=5, columnspan=2, column=2, sticky='ew')
+
+        # Placing the entries
+        self.room_id_entry.grid(row=0, column=2, sticky='ew')
+        self.room_number_entry.grid(row=1, column=2, sticky='ew')
+        self.room_type_entry.grid(row=2, column=2, sticky='ew')
+        self.room_price_entry.grid(row=3, column=2, sticky='ew')
+        self.room_availability_entry.grid(row=4, column=2, sticky='ew')
+        self.room_managed_by_entry.grid(row=5, column=2, sticky='ew')
 
         return room_details_frame
 
