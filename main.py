@@ -73,7 +73,7 @@ class GuestTab(ttk.Frame):
         self.guests_treeview.heading('first_name', text='First Name')
         self.guests_treeview.heading('last_name', text='Last Name')
 
-        self.guests_treeview.column('guest_id', width=80)
+        self.guests_treeview.column('guest_id', width=120)
         self.guests_treeview.column('first_name', width=120)
         self.guests_treeview.column('last_name', width=120)
 
@@ -98,10 +98,12 @@ class GuestTab(ttk.Frame):
             text='New',
             command=self.new_guest_button
         ).pack(side='left', expand=True, fill='both', padx=2, )
-        tk.Button(tools_frame,
-                  text='Open',
-                  command=self.open_guest_button
-                  ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            tools_frame,
+            text='Open',
+            command=self.open_guest_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
         # tk.Button(tools_frame, text='Modify', command=functionality.modify_button_guest).pack(
         #     side='left', expand=True, fill='both', padx=2
         # )
@@ -175,12 +177,12 @@ class GuestTab(ttk.Frame):
                 )
 
     def new_guest_button(self):
-        pass
+        new_guest_creation = CreationWindow(self, "New Guest Creation")
 
     def open_guest_button(self):
         guest_index = self.guests_treeview.focus()
         selected_guest = self.guests_treeview.item(guest_index)
-        retrieved_guest = sql_connection.retrieve_an_employee(selected_guest.get('values')[0])
+        retrieved_guest = sql_connection.retrieve_a_guest(selected_guest.get('values')[0])
 
         self.guest_id_variable.set(retrieved_guest[0])
         self.guest_firstname_variable.set(retrieved_guest[1])
@@ -189,6 +191,12 @@ class GuestTab(ttk.Frame):
         self.guest_phone_number_variable.set(retrieved_guest[4])
 
         del retrieved_guest
+
+    def modify_guest_button(self):
+        pass
+
+    def delete_guest_button(self):
+        pass
 
 
 class RoomTab(ttk.Frame):
@@ -213,15 +221,6 @@ class RoomTab(ttk.Frame):
         self.rooms_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
 
-    def rooms_widgets(self, frame):
-        rooms_widgets_frame = ttk.Frame(master=frame)
-        rooms_widgets_frame.configure(borderwidth=10, relief='groove')
-
-        self.rooms_buttons(rooms_widgets_frame).pack()
-        self.rooms_details(rooms_widgets_frame).pack(expand=True, fill='both')
-
-        return rooms_widgets_frame
-
     def rooms_list(self, frame):
         rooms_table_frame = ttk.Frame(master=frame)
         rooms_table_frame.configure(borderwidth=10, relief='groove')
@@ -243,6 +242,15 @@ class RoomTab(ttk.Frame):
         self.populate_room_table()
 
         return rooms_table_frame
+
+    def rooms_widgets(self, frame):
+        rooms_widgets_frame = ttk.Frame(master=frame)
+        rooms_widgets_frame.configure(borderwidth=10, relief='groove')
+
+        self.rooms_buttons(rooms_widgets_frame).pack()
+        self.rooms_details(rooms_widgets_frame).pack(expand=True, fill='both')
+
+        return rooms_widgets_frame
 
     def rooms_buttons(self, frame):
         room_buttons_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
@@ -376,14 +384,6 @@ class ScheduleTab(ttk.Frame):
         self.schedule_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
 
-    def schedule_widgets(self, frame):
-        schedule_widgets_frame = ttk.Frame(master=frame)
-        schedule_widgets_frame.configure(borderwidth=10, relief='groove')
-
-        self.schedule_buttons(schedule_widgets_frame).pack(fill='x')
-        self.schedule_details(schedule_widgets_frame).pack(expand=True, fill='both')
-        return schedule_widgets_frame
-
     def schedule_list(self, frame):
         schedule_list_frame = ttk.Frame(master=frame)
         schedule_list_frame.configure(borderwidth=10, relief='groove')
@@ -399,8 +399,16 @@ class ScheduleTab(ttk.Frame):
             listvariable=schedule_list_items
         )
 
-        self.schedules_list.pack(expand=True,fill='both')
+        self.schedules_list.pack(expand=True, fill='both')
         return schedule_list_frame
+
+    def schedule_widgets(self, frame):
+        schedule_widgets_frame = ttk.Frame(master=frame)
+        schedule_widgets_frame.configure(borderwidth=10, relief='groove')
+
+        self.schedule_buttons(schedule_widgets_frame).pack(fill='x')
+        self.schedule_details(schedule_widgets_frame).pack(expand=True, fill='both')
+        return schedule_widgets_frame
 
     def schedule_buttons(self, frame):
         schedule_buttons_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
@@ -525,6 +533,10 @@ class EmployeeTab(ttk.Frame):
         self.employee_treeview.heading('first_name', text='First Name')
         self.employee_treeview.heading('last_name', text='Last Name')
 
+        self.employee_treeview.column('employee_id', width=120)
+        self.employee_treeview.column('first_name', width=120)
+        self.employee_treeview.column('last_name', width=120)
+
         self.employee_treeview.pack(expand=True, fill='both')
 
         self.populate_employee_list()
@@ -588,7 +600,7 @@ class EmployeeTab(ttk.Frame):
         tk.Label(employee_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
         tk.Label(employee_details_frame, text='Job Position: ').grid(row=5, column=0, sticky='nsew')
         tk.Label(employee_details_frame, text='Manager: ').grid(row=6, column=0, sticky='nsew')
-        
+
         self.employee_id_entry = tk.Entry(
             employee_details_frame,
             textvariable=self.employee_id_variable,
@@ -642,7 +654,7 @@ class EmployeeTab(ttk.Frame):
                 )
 
     def new_employee_button(self):
-        pass
+        CreationWindow(self, "New Employee Creation")
 
     def open_employee_button(self):
         employee_index = self.employee_treeview.focus()
@@ -671,6 +683,116 @@ class EmployeeTab(ttk.Frame):
 
     def assign_schedule_button(self):
         pass
+
+
+class CreationWindow(tk.Toplevel):
+    def __init__(self, root, window_title):
+        super().__init__(root)
+        self.geometry('400x200')
+        self.minsize(400,200)
+        self.title(window_title)
+
+        self.firstname_variable = tk.StringVar()
+        self.lastname_variable = tk.StringVar()
+        self.email_variable = tk.StringVar()
+        self.phone_number_variable = tk.StringVar()
+        self.payment_info_variable = tk.StringVar()
+
+        self.firstname_entry = None
+        self.lastname_entry = None
+        self.email_entry = None
+        self.phone_number_entry = None
+        self.payment_info_entry = None
+
+        if window_title == "New Guest Creation":
+            self.create_guest().pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.grab_set()
+
+    def create_guest(self):
+        create_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        create_frame.columnconfigure((0, 1), weight=1, uniform='a')
+        create_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+
+        # Label for Creation
+        ttk.Label(
+            create_frame,
+            text="* First Name:"
+        ).grid(row=0, column=0, sticky='nsew')
+        ttk.Label(
+            create_frame,
+            text="* Last Name:"
+        ).grid(row=1, column=0, sticky='nsew')
+        ttk.Label(
+            create_frame,
+            text="* Email:"
+        ).grid(row=2, column=0, sticky='nsew')
+        ttk.Label(
+            create_frame,
+            text="Phone Number:"
+        ).grid(row=3, column=0, sticky='nsew')
+        ttk.Label(
+            create_frame,
+            text="* Payment Info:"
+        ).grid(row=4, column=0, sticky='nsew')
+
+        # Entries for Creation
+        self.firstname_entry = ttk.Entry(
+            create_frame,
+            textvariable=self.firstname_variable
+        )
+        self.lastname_entry = ttk.Entry(
+            create_frame,
+            textvariable=self.lastname_variable
+        )
+        self.email_entry = ttk.Entry(
+            create_frame,
+            textvariable=self.email_variable
+        )
+        self.phone_number_entry = ttk.Entry(
+            create_frame,
+            textvariable=self.phone_number_variable
+        )
+        self.payment_info_entry = ttk.Entry(
+            create_frame,
+            textvariable=self.payment_info_variable
+        )
+
+        # Placing the Entries
+        self.firstname_entry.grid(row=0, column=1, sticky='ew')
+        self.lastname_entry.grid(row=1, column=1, sticky='ew')
+        self.email_entry.grid(row=2, column=1, sticky='ew')
+        self.phone_number_entry.grid(row=3, column=1, sticky='ew')
+        self.payment_info_entry.grid(row=4, column=1, sticky='ew')
+
+        # Buttons
+        tk.Button(
+            create_frame,
+            text="Submit",
+            command=self.submit_guest_button
+        ).grid(row=6, column=0, sticky='nsew')
+        tk.Button(
+            create_frame,
+            text="Cancel",
+            command=self.cancel_create_button
+        ).grid(row=6, column=1, sticky='nsew')
+
+        return create_frame
+
+    def submit_guest_button(self):
+        sql_connection.create_a_guest(
+            self.firstname_variable.get(),
+            self.lastname_variable.get(),
+            self.email_variable.get(),
+            self.phone_number_variable.get(),
+            self.payment_info_variable.get(),
+        )
+        self.grab_release()
+        self.destroy()
+
+    def cancel_create_button(self):
+        self.grab_release()
+        self.destroy()
 
 
 App()
