@@ -13,11 +13,11 @@ def retrieve_guest_lists():
     retrieve_names_query = "SELECT * FROM GUEST"
     c.execute(retrieve_names_query)
 
-    lists_items = c.fetchall()
+    all_guests = c.fetchall()
     c.close()
     conn.close()
 
-    return lists_items
+    return all_guests
 
 
 def retrieve_guest(index):
@@ -39,11 +39,11 @@ def retrieve_employee_list():
     retrieve_employees_query = "SELECT * FROM EMPLOYEE"
     c.execute(retrieve_employees_query)
 
-    lists_items = c.fetchall()
+    all_employees = c.fetchall()
     c.close()
     conn.close()
 
-    return lists_items
+    return all_employees
 
 
 def retrieve_an_employee(id_index):
@@ -69,3 +69,16 @@ def retrieve_manager(manager_id):
     conn.close()
 
     return the_manager
+
+
+def retrieve_rooms_list():
+    conn = sqlite3.connect('database/hotelDB.db')
+    c = conn.cursor()
+    retrieve_rooms_query = "SELECT * FROM ROOM"
+    c.execute(retrieve_rooms_query)
+
+    all_rooms = c.fetchall()
+    c.close()
+    conn.close()
+
+    return all_rooms

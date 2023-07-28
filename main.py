@@ -27,8 +27,8 @@ class HotelTabs(ttk.Notebook):
         self.employee_tab = EmployeeTab(self)
         self.add(self.guest_tab, text='Guests')
         self.add(self.room_tab, text='Rooms')
-        self.add(self.schedule_tab, text='Schedules')
         self.add(self.employee_tab, text='Employees')
+        self.add(self.schedule_tab, text='Schedules')
 
         self.pack(expand=True, fill="both")
 
@@ -85,12 +85,12 @@ class GuestTab(ttk.Frame):
         widgets_frame = ttk.Frame(master=self)
         widgets_frame.configure(borderwidth=10, relief='groove')
 
-        self.guests_tools(widgets_frame).pack()
+        self.guests_buttons(widgets_frame).pack()
         self.guest_details(widgets_frame).pack()
 
         return widgets_frame
 
-    def guests_tools(self, frame):
+    def guests_buttons(self, frame):
         tools_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
 
         tk.Button(
@@ -180,9 +180,174 @@ class RoomTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
-        self.label2 = tk.Label(self, background='green')
-        self.label2.pack(expand=True, fill='both')
+        self.room_id_entry = None
+        self.room_type_entry = None
+        self.room_price_entry = None
+        self.room_availability_entry = None
+        self.room_managed_by_entry = None
+
+        self.room_id_variable = None
+        self.room_number_variable = None
+        self.room_type_variable = None
+        self.room_price_variable = None
+        self.room_availability_variable = None
+        self.room_managed_by_variable = None
+
+        self.rooms_treeview = None
+        self.rooms_list(self).pack(side='left', expand=True, fill='both')
+        self.rooms_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
+
+    def rooms_widgets(self, frame):
+        rooms_widgets_frame = ttk.Frame(master=frame)
+        rooms_widgets_frame.configure(borderwidth=10, relief='groove')
+
+        self.rooms_buttons(rooms_widgets_frame).pack()
+        self.rooms_details(rooms_widgets_frame).pack(expand=True, fill='both')
+
+        return rooms_widgets_frame
+
+    def rooms_list(self, frame):
+        rooms_table_frame = ttk.Frame(master=frame)
+        rooms_table_frame.configure(borderwidth=10, relief='groove')
+        self.rooms_treeview = ttk.Treeview(
+            master=rooms_table_frame,
+            columns=('room_id', 'room_number'),
+            show='headings',
+            selectmode='browse'
+        )
+
+        self.rooms_treeview.heading('room_id', text='Room ID')
+        self.rooms_treeview.heading('room_number', text='Room Number')
+        self.rooms_treeview.pack(expand=True, fill='both')
+
+        self.populate_room_table()
+
+        return rooms_table_frame
+
+    def rooms_buttons(self, frame):
+        room_buttons_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
+
+        tk.Button(
+            room_buttons_frame,
+            text='New',
+            command=self.new_room_button
+        ).pack(side='left', expand=True, fill='both', padx=2, )
+
+        tk.Button(
+            room_buttons_frame,
+            text='Open',
+            command=self.open_room_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            room_buttons_frame,
+            text='Modify',
+            command=self.modify_room_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            room_buttons_frame,
+            text='Delete',
+            command=self.delete_room_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        # tk.Button(
+        #     room_buttons_frame,
+        #     text='Assign Schedule',
+        #     command=self.assign_schedule_button
+        # ).pack(side='left', expand=True, fill='both', padx=2)
+
+        room_buttons_frame.pack(fill='x')
+        return room_buttons_frame
+        pass
+
+    def rooms_details(self, frame):
+        room_details_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
+        room_details_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        room_details_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
+
+        self.room_id_variable = tk.StringVar()
+        self.room_number_variable = tk.StringVar()
+        self.room_type_variable = tk.StringVar()
+        self.room_price_variable = tk.StringVar()
+        self.room_availability_variable = tk.StringVar()
+        self.room_managed_by_variable = tk.StringVar()
+
+        # Entry for Room ID
+        tk.Label(room_details_frame, text='Room ID:').grid(row=0, columnspan=2, column=0, sticky='nsew')
+        self.room_id_entry = tk.Entry(
+            room_details_frame,
+            textvariable=self.room_id_variable,
+            state='disabled'
+        )
+        self.room_id_entry.grid(row=0, column=2, sticky='ew')
+
+        # Entry for Room Number
+        tk.Label(room_details_frame, text='Room Name:').grid(row=1, column=0, sticky='nsew')
+        self.room_number_entry = tk.Entry(
+            room_details_frame,
+            textvariable=self.room_number_variable
+        )
+        self.room_number_entry.grid(row=1, columnspan=2, column=2, sticky='ew')
+
+        # Entry for Room Type
+        tk.Label(room_details_frame, text='Last Name:').grid(row=2, column=0, sticky='nsew')
+        self.room_type_entry = tk.Entry(
+            room_details_frame,
+            textvariable=self.room_type_variable
+        )
+        self.room_type_entry.grid(row=2, columnspan=2, column=2, sticky='ew')
+
+        # Entry for Room Price
+        tk.Label(room_details_frame, text='Email:').grid(row=3, column=0, sticky='nsew')
+        self.room_price_entry = tk.Entry(
+            room_details_frame,
+            textvariable=self.room_price_variable
+        )
+        self.room_price_entry.grid(row=3, columnspan=2, column=2, sticky='ew')
+
+        # Entry for Availability
+        tk.Label(room_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
+        self.room_availability_entry = tk.Entry(
+            room_details_frame,
+            textvariable=self.room_availability_variable
+        )
+        self.room_availability_entry.grid(row=4, columnspan=2, column=2, sticky='ew')
+
+        # Entry for Maintenance
+        tk.Label(room_details_frame, text='Job Position: ').grid(row=5, column=0, sticky='nsew')
+        self.room_managed_by_entry = tk.Label(
+            room_details_frame,
+            textvariable=self.room_managed_by_variable
+        )
+        self.room_managed_by_entry.grid(row=5, columnspan=2, column=2, sticky='ew')
+
+        return room_details_frame
+
+    def populate_room_table(self):
+        all_rooms = sql_connection.retrieve_rooms_list()
+        for i in all_rooms:
+            if i[-1] == 0:
+                self.rooms_treeview.insert(
+                    parent='',
+                    index=tk.END,
+                    iid=None,
+                    values=(i[0], i[1])
+                )
+        pass
+
+    def new_room_button(self):
+        pass
+
+    def open_room_button(self):
+        pass
+
+    def modify_room_button(self):
+        pass
+
+    def delete_room_button(self):
+        pass
 
 
 class ScheduleTab(ttk.Frame):
@@ -217,18 +382,19 @@ class EmployeeTab(ttk.Frame):
         self.employee_firstname_variable = None
         self.employee_id_variable = None
 
-        self.employee_table(self).pack(side='left', expand=True, fill='both', )
-        self.employee_widgets_frame(self).pack(side='left', expand=True, fill='both')
+        self.employee_table(self).pack(side='left', expand=True, fill='both')
+        self.employee_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
 
     def employee_table(self, frame):
         employee_table_frame = ttk.Frame(master=frame)
         employee_table_frame.configure(borderwidth=10, relief='groove')
-        self.employee_treeview = ttk.Treeview(master=employee_table_frame,
-                                              columns=('employee_id', 'first_name', 'last_name'),
-                                              show='headings',
-                                              selectmode='browse'
-                                              )
+        self.employee_treeview = ttk.Treeview(
+            master=employee_table_frame,
+            columns=('employee_id', 'first_name', 'last_name'),
+            show='headings',
+            selectmode='browse'
+        )
 
         self.employee_treeview.heading('employee_id', text='Employee ID')
         self.employee_treeview.heading('first_name', text='First Name')
@@ -239,12 +405,12 @@ class EmployeeTab(ttk.Frame):
         self.populate_employee_list()
         return employee_table_frame
 
-    def employee_widgets_frame(self, frame):
+    def employee_widgets(self, frame):
         employee_widgets_frame = ttk.Frame(master=frame)
         employee_widgets_frame.configure(borderwidth=10, relief='groove')
 
         self.employee_buttons(employee_widgets_frame).pack()
-        self.employee_details(employee_widgets_frame).pack()
+        self.employee_details(employee_widgets_frame).pack(expand=True, fill='both')
 
         return employee_widgets_frame
 
@@ -354,8 +520,18 @@ class EmployeeTab(ttk.Frame):
         )
         self.manager_name.grid(row=6, columnspan=2, column=2, sticky='ew')
 
-        employee_details_frame.pack(expand=True, fill='both')
         return employee_details_frame
+    
+    def populate_employee_list(self):
+        employees = sql_connection.retrieve_employee_list()
+        for i in employees:
+            if i[-1] == 0:
+                self.employee_treeview.insert(
+                    parent='',
+                    index=tk.END,
+                    iid=None,
+                    values=(i[0], i[1], i[2])
+                )
 
     def new_employee_button(self):
         pass
@@ -388,16 +564,7 @@ class EmployeeTab(ttk.Frame):
     def assign_schedule_button(self):
         pass
 
-    def populate_employee_list(self):
-        employees = sql_connection.retrieve_employee_list()
-        for i in employees:
-            if i[-1] == 0:
-                self.employee_treeview.insert(
-                    parent='',
-                    index=tk.END,
-                    iid=None,
-                    values=(i[0], i[1], i[2])
-                )
+
 
 
 App()
