@@ -354,6 +354,16 @@ class ScheduleTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
+        self.schedule_id_variable = tk.StringVar()
+        self.schedule_start_date_variable = tk.StringVar()
+        self.schedule_end_date_variable = tk.StringVar()
+        self.schedule_availability_variable = tk.StringVar()
+
+        self.schedule_id_entry = None
+        self.schedule_start_date_entry = None
+        self.schedule_end_date_entry = None
+        self.schedule_availability_entry = None
+
         self.schedules_list = None
         self.schedule_list(self).pack(side='left', fill='both')
         self.schedule_widgets(self).pack(side='left', expand=True, fill='both')
@@ -363,6 +373,8 @@ class ScheduleTab(ttk.Frame):
         schedule_widgets_frame = ttk.Frame(master=frame)
         schedule_widgets_frame.configure(borderwidth=10, relief='groove')
 
+        self.schedule_buttons(schedule_widgets_frame).pack(fill='x')
+        self.schedule_details(schedule_widgets_frame).pack(expand=True, fill='both')
         return schedule_widgets_frame
 
     def schedule_list(self, frame):
@@ -384,10 +396,82 @@ class ScheduleTab(ttk.Frame):
         return schedule_list_frame
 
     def schedule_buttons(self, frame):
+        schedule_buttons_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
 
-        pass
+        tk.Button(
+            schedule_buttons_frame,
+            text='New',
+            command=self.new_schedule_button
+        ).pack(side='left', expand=True, fill='both', padx=2, )
+
+        tk.Button(
+            schedule_buttons_frame,
+            text='Open',
+            command=self.open_schedule_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            schedule_buttons_frame,
+            text='Modify',
+            command=self.modify_schedule_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            schedule_buttons_frame,
+            text='Delete',
+            command=self.delete_schedule_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        schedule_buttons_frame.pack(fill='x')
+        return schedule_buttons_frame
 
     def schedule_details(self, frame):
+        schedule_details_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
+        schedule_details_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        schedule_details_frame.rowconfigure((0, 1, 2, 3, 4), weight=1, uniform='a')
+
+        # Labels for Schedule
+        ttk.Label(schedule_details_frame, text="Schedule ID").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(schedule_details_frame, text="Start Date").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(schedule_details_frame, text="End Date").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(schedule_details_frame, text="Availability").grid(row=3, column=0, sticky='nsew')
+
+        # Entries for Schedule
+        self.schedule_id_entry = ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_id_variable
+        )
+        self.schedule_start_date_entry = ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_start_date_variable
+        )
+        self.schedule_end_date_entry = ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_end_date_variable
+        )
+        self.schedule_availability_entry = ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_availability_variable
+        )
+
+        # Packing the Entries
+        self.schedule_id_entry.grid(row=0, column=1, sticky='ew')
+        self.schedule_start_date_entry.grid(row=1, column=1, sticky='ew')
+        self.schedule_end_date_entry.grid(row=2, column=1, sticky='ew')
+        self.schedule_availability_entry.grid(row=3, column=1, sticky='ew')
+
+        return schedule_details_frame
+
+    def new_schedule_button(self):
+        pass
+
+    def open_schedule_button(self):
+        pass
+
+    def modify_schedule_button(self):
+        pass
+
+    def delete_schedule_button(self):
         pass
 
 
@@ -395,6 +479,8 @@ class EmployeeTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
+        self.manager_name = None
+        self.job_position = None
         self.employee_treeview = None
 
         # Entry Tkinter Variables
@@ -406,13 +492,13 @@ class EmployeeTab(ttk.Frame):
         self.employee_id_entry = None
 
         # StringVars
-        self.employee_job_position_variable = None
-        self.employee_manager_variable = None
-        self.employee_phone_number_variable = None
-        self.employee_email_variable = None
-        self.employee_lastname_variable = None
-        self.employee_firstname_variable = None
-        self.employee_id_variable = None
+        self.employee_job_position_variable = tk.StringVar()
+        self.employee_manager_variable = tk.StringVar()
+        self.employee_phone_number_variable = tk.StringVar()
+        self.employee_email_variable = tk.StringVar()
+        self.employee_lastname_variable = tk.StringVar()
+        self.employee_firstname_variable = tk.StringVar()
+        self.employee_id_variable = tk.StringVar()
 
         self.employee_table(self).pack(side='left', expand=True, fill='both')
         self.employee_widgets(self).pack(side='left', expand=True, fill='both')
@@ -487,69 +573,52 @@ class EmployeeTab(ttk.Frame):
         employee_details_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
         employee_details_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
 
-        self.employee_id_variable = tk.StringVar()
-        self.employee_firstname_variable = tk.StringVar()
-        self.employee_lastname_variable = tk.StringVar()
-        self.employee_email_variable = tk.StringVar()
-        self.employee_phone_number_variable = tk.StringVar()
-        self.employee_manager_variable = tk.StringVar()
-        self.employee_job_position_variable = tk.StringVar()
-
-        # Entry for ID
+        # Labels for Employ
         tk.Label(employee_details_frame, text='Employee ID:').grid(row=0, columnspan=2, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='First Name:').grid(row=1, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='Last Name:').grid(row=2, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='Email:').grid(row=3, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='Job Position: ').grid(row=5, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='Manager: ').grid(row=6, column=0, sticky='nsew')
+        
         self.employee_id_entry = tk.Entry(
             employee_details_frame,
             textvariable=self.employee_id_variable,
             state='disabled'
         )
-        self.employee_id_entry.grid(row=0, column=2, sticky='ew')
-
-        # Entry for First Name
-        tk.Label(employee_details_frame, text='First Name:').grid(row=1, column=0, sticky='nsew')
         self.employee_first_name_entry = tk.Entry(
             employee_details_frame,
             textvariable=self.employee_firstname_variable
         )
-        self.employee_first_name_entry.grid(row=1, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Last Name
-        tk.Label(employee_details_frame, text='Last Name:').grid(row=2, column=0, sticky='nsew')
         self.employee_last_name_entry = tk.Entry(
             employee_details_frame,
             textvariable=self.employee_lastname_variable
         )
-        self.employee_last_name_entry.grid(row=2, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Email
-        tk.Label(employee_details_frame, text='Email:').grid(row=3, column=0, sticky='nsew')
         self.employee_email_entry = tk.Entry(
             employee_details_frame,
             textvariable=self.employee_email_variable
         )
-        self.employee_email_entry.grid(row=3, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Phone Number
-        tk.Label(employee_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
         self.employee_phone_entry = tk.Entry(
             employee_details_frame,
             textvariable=self.employee_phone_number_variable
         )
-        self.employee_phone_entry.grid(row=4, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Job Position
-        tk.Label(employee_details_frame, text='Job Position: ').grid(row=5, column=0, sticky='nsew')
         self.job_position = tk.Label(
             employee_details_frame,
             textvariable=self.employee_job_position_variable
         )
-        self.job_position.grid(row=5, columnspan=2, column=2, sticky='ew')
-
-        # Entry for Manager
-        tk.Label(employee_details_frame, text='Manager: ').grid(row=6, column=0, sticky='nsew')
         self.manager_name = tk.Label(
             employee_details_frame,
             textvariable=self.employee_manager_variable
         )
+
+        # Placing the Entries/Texts
+        self.employee_id_entry.grid(row=0, column=2, sticky='ew')
+        self.employee_first_name_entry.grid(row=1, columnspan=2, column=2, sticky='ew')
+        self.employee_last_name_entry.grid(row=2, columnspan=2, column=2, sticky='ew')
+        self.employee_email_entry.grid(row=3, columnspan=2, column=2, sticky='ew')
+        self.employee_phone_entry.grid(row=4, columnspan=2, column=2, sticky='ew')
+        self.job_position.grid(row=5, columnspan=2, column=2, sticky='ew')
         self.manager_name.grid(row=6, columnspan=2, column=2, sticky='ew')
 
         return employee_details_frame
@@ -595,8 +664,6 @@ class EmployeeTab(ttk.Frame):
 
     def assign_schedule_button(self):
         pass
-
-
 
 
 App()
