@@ -1,0 +1,35 @@
+from tkinter import *
+from tkinter import ttk
+
+root_window = Tk()
+root_window.title('Hotel Management')
+root_window.geometry('640x480')
+tab_menu = ttk.Notebook(root_window)
+
+# Tab Menus Initialization
+guests_tab = Frame(tab_menu, highlightbackground="black", highlightthickness=1)
+rooms_tab = Frame(tab_menu)
+employees_tab = Frame(tab_menu)
+schedule_tab = Frame(tab_menu)
+
+tab_menu.add(guests_tab, text='Guests')
+tab_menu.add(rooms_tab, text='Rooms')
+tab_menu.add(employees_tab, text='Employees')
+tab_menu.add(schedule_tab, text='Schedules')
+tab_menu.grid(expand=True, fill='both')
+
+guests_list_frame = Frame(guests_tab)
+guests_list_label = Label(guests_list_frame,text="Guests List", font="Arial")
+guest_lists = Listbox(guests_list_frame)
+guests_list_label.pack(side=LEFT)
+guest_lists.pack(side=LEFT, fill=Y)
+
+
+
+
+Label(rooms_tab, text='Rooms table will be here', width=100, height=30).pack()
+Label(employees_tab, text='Employees table will be here', width=100, height=30).pack()
+Label(schedule_tab, text='Schedules table will be here', width=100, height=30).pack()
+
+root_window.eval('tk::PlaceWindow . center')
+root_window.mainloop()
