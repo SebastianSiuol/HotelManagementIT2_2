@@ -354,9 +354,41 @@ class ScheduleTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
-        self.label2 = tk.Label(self, background='blue')
-        self.label2.pack(expand=True, fill='both')
+        self.schedules_list = None
+        self.schedule_list(self).pack(side='left', fill='both')
+        self.schedule_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
+
+    def schedule_widgets(self, frame):
+        schedule_widgets_frame = ttk.Frame(master=frame)
+        schedule_widgets_frame.configure(borderwidth=10, relief='groove')
+
+        return schedule_widgets_frame
+
+    def schedule_list(self, frame):
+        schedule_list_frame = ttk.Frame(master=frame)
+        schedule_list_frame.configure(borderwidth=10, relief='groove')
+        ttk.Label(
+            schedule_list_frame,
+            text='Schedules',
+            font='Arial'
+        ).pack(fill='x')
+
+        schedule_list_items = tk.StringVar()
+        self.schedules_list = tk.Listbox(
+            schedule_list_frame,
+            listvariable=schedule_list_items
+        )
+
+        self.schedules_list.pack(expand=True,fill='both')
+        return schedule_list_frame
+
+    def schedule_buttons(self, frame):
+
+        pass
+
+    def schedule_details(self, frame):
+        pass
 
 
 class EmployeeTab(ttk.Frame):
