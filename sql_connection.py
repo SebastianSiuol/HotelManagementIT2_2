@@ -1,13 +1,15 @@
 import sqlite3
 
-
+"""Template for establishing connection and closing it"""
 # conn = sqlite3.connect('database/hotelDB.db')
 # c = conn.cursor()
 #
 # c.close()
 # conn.close()
 
+
 def retrieve_guest_lists():
+    """SQL Query for retrieving all guest information"""
     conn = sqlite3.connect('database/hotelDB.db')
     c = conn.cursor()
     retrieve_names_query = "SELECT * FROM GUEST"
@@ -20,7 +22,8 @@ def retrieve_guest_lists():
     return all_guests
 
 
-def retrieve_guest(index):
+def retrieve_a_guest(index):
+    """SQL Query for retrieving a specific guest information"""
     conn = sqlite3.connect('database/hotelDB.db')
     c = conn.cursor()
 

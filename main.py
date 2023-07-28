@@ -166,7 +166,7 @@ class GuestTab(ttk.Frame):
     def open_guest_button(self):
         guest_id = self.guest_lists.get(self.guest_lists.curselection())
         guest_id = guest_id.split(":")
-        retrieved_guest_details = sql_connection.retrieve_guest(guest_id[1])
+        retrieved_guest_details = sql_connection.retrieve_a_guest(guest_id[1])
         self.guest_id_variable.set(retrieved_guest_details[0])
         self.guest_first_name.set(retrieved_guest_details[1])
         self.guest_last_name.set(retrieved_guest_details[2])
@@ -316,7 +316,7 @@ class RoomTab(ttk.Frame):
         self.room_availability_entry.grid(row=4, columnspan=2, column=2, sticky='ew')
 
         # Entry for Maintenance
-        tk.Label(room_details_frame, text='Job Position: ').grid(row=5, column=0, sticky='nsew')
+        tk.Label(room_details_frame, text='Managed by: ').grid(row=5, column=0, sticky='nsew')
         self.room_managed_by_entry = tk.Label(
             room_details_frame,
             textvariable=self.room_managed_by_variable
@@ -521,7 +521,7 @@ class EmployeeTab(ttk.Frame):
         self.manager_name.grid(row=6, columnspan=2, column=2, sticky='ew')
 
         return employee_details_frame
-    
+
     def populate_employee_list(self):
         employees = sql_connection.retrieve_employee_list()
         for i in employees:
