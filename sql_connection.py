@@ -10,7 +10,7 @@ import sqlite3
 def retrieve_guest_lists():
     conn = sqlite3.connect('database/hotelDB.db')
     c = conn.cursor()
-    retrieve_names_query = "SELECT * FROM EMPLOYEE"
+    retrieve_names_query = "SELECT * FROM GUEST"
     c.execute(retrieve_names_query)
 
     lists_items = c.fetchall()
@@ -24,8 +24,8 @@ def retrieve_guest(index):
     conn = sqlite3.connect('database/hotelDB.db')
     c = conn.cursor()
 
-    c.execute("""SELECT employee_id,first_name,last_name,email,
-                phone_number,job_position FROM EMPLOYEE WHERE employee_id = ?""", (index,))
+    c.execute("""SELECT guest_id,first_name,last_name,email,
+                phone_number,payment_info FROM GUEST WHERE guest_id = ?""", (index,))
     guest_details = c.fetchone()
     c.close()
     conn.close()
