@@ -732,3 +732,62 @@ class ModifyGuestSQL:
         finally:
             c.close()
             self.conn.close()
+
+
+class RoomTabSQL:
+    def __init__(self):
+        self.conn = None
+
+    def retrieve_a_specific_room(self, room_id):
+        """SQL Query for retrieving a room """
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        room_result = None
+
+        try:
+            retrieve_a_room_query = """
+            SELECT 
+                room_id,
+                room_number, 
+                room_type, 
+                price, 
+                    CASE
+                        WHEN availability = 0 THEN 'Unavailable'
+                        WHEN availability = 1 THEN 'Available'
+                        ELSE 'Unknown'
+                    END AS availability,
+                employee_id
+            FROM Room
+            WHERE room_id = ?
+            """
+            c.execute(retrieve_a_room_query, (room_id,))
+            room_result = c.fetchall()[0]
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+            return room_result
+
+    def soft_delete_room(self, room_id):
+        """SQL Query for soft-deleting a room """
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            soft_delete_room_query = """
+                UPDATE Room
+                SET is_deleted = 1
+                WHERE room_id = ?
+            """
+            c.execute(soft_delete_room_query, (room_id,))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error", e)
+
+        finally:
+            c.close()
+            self.conn.close()

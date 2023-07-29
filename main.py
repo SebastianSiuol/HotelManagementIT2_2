@@ -280,18 +280,12 @@ class RoomTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
-        self.room_id_entry = None
-        self.room_type_entry = None
-        self.room_price_entry = None
-        self.room_availability_entry = None
-        self.room_managed_by_entry = None
-
-        self.room_id_variable = None
-        self.room_number_variable = None
-        self.room_type_variable = None
-        self.room_price_variable = None
-        self.room_availability_variable = None
-        self.room_managed_by_variable = None
+        self.room_id_variable = tk.StringVar()
+        self.room_number_variable = tk.StringVar()
+        self.room_type_variable = tk.StringVar()
+        self.room_price_variable = tk.StringVar()
+        self.room_availability_variable = tk.StringVar()
+        self.room_managed_by_variable = tk.StringVar()
 
         self.rooms_treeview = None
         self.rooms_list(self).pack(side='left', expand=True, fill='both')
@@ -356,6 +350,12 @@ class RoomTab(ttk.Frame):
             command=self.delete_room_button
         ).pack(side='left', expand=True, fill='both', padx=2)
 
+        tk.Button(
+            room_buttons_frame,
+            text='Refresh',
+            command=self.refresh_room_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
         room_buttons_frame.pack(fill='x')
         return room_buttons_frame
         pass
@@ -364,13 +364,6 @@ class RoomTab(ttk.Frame):
         room_details_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
         room_details_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
         room_details_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
-
-        self.room_id_variable = tk.StringVar()
-        self.room_number_variable = tk.StringVar()
-        self.room_type_variable = tk.StringVar()
-        self.room_price_variable = tk.StringVar()
-        self.room_availability_variable = tk.StringVar()
-        self.room_managed_by_variable = tk.StringVar()
 
         # Labels for Room
         tk.Label(room_details_frame, text='Room ID:').grid(row=0, columnspan=2, column=0, sticky='nsew')
@@ -381,39 +374,40 @@ class RoomTab(ttk.Frame):
         tk.Label(room_details_frame, text='Managed by: ').grid(row=5, column=0, sticky='nsew')
 
         # Entries for Room
-        self.room_id_entry = tk.Entry(
+        tk.Entry(
             room_details_frame,
             textvariable=self.room_id_variable,
-            state='disabled'
-        )
-        self.room_number_entry = tk.Entry(
-            room_details_frame,
-            textvariable=self.room_number_variable
-        )
-        self.room_type_entry = tk.Entry(
-            room_details_frame,
-            textvariable=self.room_type_variable
-        )
-        self.room_price_entry = tk.Entry(
-            room_details_frame,
-            textvariable=self.room_price_variable
-        )
-        self.room_availability_entry = tk.Entry(
-            room_details_frame,
-            textvariable=self.room_availability_variable
-        )
-        self.room_managed_by_entry = tk.Label(
-            room_details_frame,
-            textvariable=self.room_managed_by_variable
-        )
+            state='readonly'
+        ).grid(row=0, column=2, sticky='ew')
 
-        # Placing the entries
-        self.room_id_entry.grid(row=0, column=2, sticky='ew')
-        self.room_number_entry.grid(row=1, column=2, sticky='ew')
-        self.room_type_entry.grid(row=2, column=2, sticky='ew')
-        self.room_price_entry.grid(row=3, column=2, sticky='ew')
-        self.room_availability_entry.grid(row=4, column=2, sticky='ew')
-        self.room_managed_by_entry.grid(row=5, column=2, sticky='ew')
+        tk.Entry(
+            room_details_frame,
+            textvariable=self.room_number_variable,
+            state='readonly'
+        ).grid(row=1, column=2, sticky='ew')
+
+        tk.Entry(
+            room_details_frame,
+            textvariable=self.room_type_variable,
+            state='readonly'
+        ).grid(row=2, column=2, sticky='ew')
+
+        tk.Entry(
+            room_details_frame,
+            textvariable=self.room_price_variable,
+            state='readonly'
+        ).grid(row=3, column=2, sticky='ew')
+
+        tk.Entry(
+            room_details_frame,
+            textvariable=self.room_availability_variable,
+            state='readonly'
+        ).grid(row=4, column=2, sticky='ew')
+
+        tk.Label(
+            room_details_frame,
+            textvariable=self.room_managed_by_variable,
+        ).grid(row=5, column=2, sticky='ew')
 
         return room_details_frame
 
@@ -432,13 +426,46 @@ class RoomTab(ttk.Frame):
         pass
 
     def open_room_button(self):
-        pass
+        room_sql = RoomTabSQL()
+        if not self.rooms_treeview.focus():
+            showwarning(title="Error!",
+                        message='No room is selected!')
+        else:
+            highlighted_room = self.rooms_treeview.focus()
+            selected_room = self.rooms_treeview.item(highlighted_room)
+            selected_room_id = selected_room.get('values')[0]
+            retrieved_room = room_sql.retrieve_a_specific_room(selected_room_id)
+
+            self.room_id_variable.set(retrieved_room[0])
+            self.room_number_variable.set(retrieved_room[1])
+            self.room_type_variable.set(retrieved_room[2])
+            self.room_price_variable.set(retrieved_room[3])
+            self.room_availability_variable.set(retrieved_room[4])
+            self.room_managed_by_variable.set(retrieved_room[5])
 
     def modify_room_button(self):
         pass
 
     def delete_room_button(self):
-        pass
+        room_sql = RoomTabSQL()
+        if not self.rooms_treeview.focus():
+            showwarning(title="Error!",
+                        message='No room is selected!')
+        else:
+
+            highlighted_room = self.rooms_treeview.focus()
+            selected_room = self.rooms_treeview.item(highlighted_room)
+            selected_room_id = selected_room.get('values')[0]
+            confirm_delete = askyesno(title="Deletion!",
+                                      message=f"You are deleting Room {selected_room.get('values')[1]}.\nConfirm?")
+            if confirm_delete:
+                room_sql.soft_delete_room(selected_room_id)
+                self.refresh_room_button()
+
+    def refresh_room_button(self):
+        for item in self.rooms_treeview.get_children():
+            self.rooms_treeview.delete(item)
+        self.populate_room_table()
 
 
 class ScheduleTab(ttk.Frame):
@@ -825,15 +852,15 @@ class BillingTab(ttk.Frame):
 
         tk.Button(
             bills_buttons_frame,
-            text='Pay',
+            text='Process',
             command=self.pay_bills_button
         ).pack(side='left', expand=True, fill='both', padx=2)
 
-        # tk.Button(
-        #     bills_buttons_frame,
-        #     text='Delete',
-        #     command=self.delete_bills_button
-        # ).pack(side='left', expand=True, fill='both', padx=2)
+        tk.Button(
+            bills_buttons_frame,
+            text='Refresh',
+            command=self.refresh_bills_table
+        ).pack(side='left', expand=True, fill='both', padx=2)
 
         bills_buttons_frame.pack(fill='x')
 
@@ -949,11 +976,6 @@ class GuestCreationWindow(tk.Toplevel):
 
         self.select_rooms = None
         self.current_frame = None
-        self.firstname_entry = None
-        self.lastname_entry = None
-        self.email_entry = None
-        self.phone_number_entry = None
-        self.payment_info_entry = None
 
         self.create_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
@@ -988,24 +1010,17 @@ class GuestCreationWindow(tk.Toplevel):
         ).grid(row=4, column=0, sticky='nsew')
 
         # Entries for Creation
-        self.firstname_entry = ttk.Entry(create_frame, textvariable=self.firstname_variable)
-        self.lastname_entry = ttk.Entry(create_frame, textvariable=self.lastname_variable)
-        self.email_entry = ttk.Entry(create_frame, textvariable=self.email_variable)
-        self.phone_number_entry = ttk.Entry(create_frame, textvariable=self.phone_number_variable)
-        self.payment_info_entry = ttk.Entry(create_frame, textvariable=self.payment_info_variable)
-
-        # Placing the Entries
-        self.firstname_entry.grid(row=0, column=1, sticky='ew')
-        self.lastname_entry.grid(row=1, column=1, sticky='ew')
-        self.email_entry.grid(row=2, column=1, sticky='ew')
-        self.phone_number_entry.grid(row=3, column=1, sticky='ew')
-        self.payment_info_entry.grid(row=4, column=1, sticky='ew')
+        ttk.Entry(create_frame, textvariable=self.firstname_variable).grid(row=0, column=1, sticky='ew')
+        ttk.Entry(create_frame, textvariable=self.lastname_variable).grid(row=1, column=1, sticky='ew')
+        ttk.Entry(create_frame, textvariable=self.email_variable).grid(row=2, column=1, sticky='ew')
+        ttk.Entry(create_frame, textvariable=self.phone_number_variable).grid(row=3, column=1, sticky='ew')
+        ttk.Entry(create_frame, textvariable=self.payment_info_variable).grid(row=4, column=1, sticky='ew')
 
         # Buttons
         tk.Button(
             create_frame,
             text="Next",
-            command=self.submit_guest_button
+            command=self.next_to_create_rooms_button
         ).grid(row=6, column=0, sticky='nsew')
         tk.Button(
             create_frame,
@@ -1046,14 +1061,19 @@ class GuestCreationWindow(tk.Toplevel):
         # Buttons
         tk.Button(
             assign_frame,
-            text="Assign",
-            command=self.assign_guest_button
+            text="Next",
+            command=self.next_to_checkout_date_button
         ).grid(row=6, columnspan=2, column=0, sticky='nsew')
+        tk.Button(
+            assign_frame,
+            text="Back",
+            command=self.back_to_create_basic_information_button
+        ).grid(row=6, column=2, sticky='nsew')
         tk.Button(
             assign_frame,
             text="Cancel",
             command=self.cancel_create_button
-        ).grid(row=6, columnspan=2, column=2, sticky='nsew')
+        ).grid(row=6, column=3, sticky='nsew')
         tk.Button(
             assign_frame,
             text='Check Room',
@@ -1086,8 +1106,20 @@ class GuestCreationWindow(tk.Toplevel):
 
         # Buttons
         tk.Button(checkout_frame, text="Today", command=self.get_date_button).grid(row=1, column=4, sticky='ew')
-        tk.Button(checkout_frame, text="Next", command=self.confirm_guest_button).grid(row=6, column=1, sticky='ew')
-        tk.Button(checkout_frame, text="Cancel", command=self.cancel_create_button).grid(row=6, column=2, sticky='ew')
+
+        tk.Button(
+            checkout_frame,
+            text="Next",
+            command=self.next_to_confirm_guest_button
+        ).grid(row=6, columnspan=2, column=0, sticky='ew')
+
+        tk.Button(
+            checkout_frame,
+            text="Back",
+            command=self.back_to_create_rooms_date_button
+        ).grid(row=6, columnspan=2, column=2, sticky='ew')
+
+        tk.Button(checkout_frame, text="Cancel", command=self.cancel_create_button).grid(row=6, column=4, sticky='ew')
 
         self.current_frame = checkout_frame
         return checkout_frame
@@ -1127,11 +1159,25 @@ class GuestCreationWindow(tk.Toplevel):
         ttk.Label(confirm_frame, textvariable=self.rooms_total_price_variable).grid(row=7, column=1, sticky='nsew')
 
         # Buttons
-        tk.Button(confirm_frame, text="Confirm", command=self.confirm_button).grid(row=8, column=1, sticky='ew')
-        tk.Button(confirm_frame, text="Cancel", command=self.cancel_create_button).grid(row=8, column=2, sticky='ew')
+        tk.Button(
+            confirm_frame,
+            text="Confirm",
+            command=self.create_confirm_button
+        ).grid(row=8, columnspan=2, column=0, sticky='ew')
+
+        tk.Button(
+            confirm_frame,
+            text="Back",
+            command=self.back_to_create_checkout_date_button
+        ).grid(row=8, columnspan=2,  column=2, sticky='ew')
+
+        tk.Button(confirm_frame, text="Cancel", command=self.cancel_create_button).grid(row=8, column=4, sticky='ew')
+
+        self.current_frame = confirm_frame
         return confirm_frame
 
-    def submit_guest_button(self):
+    def next_to_create_rooms_button(self):
+        """First Frame 'Next' Button"""
         if not self.firstname_variable.get():
             showwarning("Error!", "No First Name Entered!")
         elif not self.lastname_variable.get():
@@ -1146,14 +1192,21 @@ class GuestCreationWindow(tk.Toplevel):
             self.current_frame.pack_forget()
             self.create_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
-    def assign_guest_button(self):
+    def next_to_checkout_date_button(self):
+        """Second Frame 'Next' Button"""
         if not self.select_rooms.get():
             showwarning("Error!", "No Room Selected!")
         else:
             self.current_frame.pack_forget()
             self.create_checkout_date_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
-    def confirm_guest_button(self):
+    def back_to_create_basic_information_button(self):
+        """Second Frame 'Back' Button"""
+        self.current_frame.pack_forget()
+        self.create_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def next_to_confirm_guest_button(self):
+        """Third Frame 'Next' Button"""
         try:
             yy1 = int(self.check_in_year_variable.get())
             mm1 = int(self.check_in_month_variable.get())
@@ -1171,7 +1224,12 @@ class GuestCreationWindow(tk.Toplevel):
         except:
             showwarning(title="Error", message="Improper Date!")
 
-    def confirm_button(self):
+    def back_to_create_rooms_date_button(self):
+        self.current_frame.pack_forget()
+        self.create_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def create_confirm_button(self):
+        """Fourth Frame 'Submit' Button"""
         confirm = askyesno(title="Confirm Guest?", message="Confirm Guest?")
         if confirm:
             sql_connection.create_a_guest(
@@ -1186,6 +1244,11 @@ class GuestCreationWindow(tk.Toplevel):
                 self.rooms_id_variable.get()
             )
             self.destroy()
+
+    def back_to_create_checkout_date_button(self):
+        self.current_frame.pack_forget()
+        self.create_checkout_date_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        pass
 
     def calculate_total_price(self):
         check_in_date = date(
@@ -1751,7 +1814,6 @@ class GuestModifyWindow(tk.Toplevel):
             self.new_rooms_price_variable.set(retrieved_room[3])
             self.new_room_flag = True
             self.assigned_room_variable.set("Assigned!")
-
 
 
 App()
