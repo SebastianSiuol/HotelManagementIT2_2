@@ -280,9 +280,6 @@ class RoomTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
-
-        self.employees = []
-        self.employees_variable = tk.StringVar()
         self.rooms_widgets_frame = ttk.Frame()
         self.room_id_variable = tk.StringVar()
         self.room_number_variable = tk.StringVar()
@@ -292,13 +289,11 @@ class RoomTab(ttk.Frame):
         self.room_managed_by_variable = tk.StringVar()
         self.room_sql = RoomTabSQL()
 
-        self.employee_list = ttk.Combobox
         self.room_id_entry = tk.Entry()
         self.room_number_entry = tk.Entry()
         self.room_type_entry = tk.Entry()
         self.room_price_entry = tk.Entry()
         self.room_availability_entry = tk.Entry()
-        self.modify_room_button_state = ttk.Button()
         self.room_sql = RoomTabSQL()
 
         self.rooms_treeview = None
@@ -353,12 +348,11 @@ class RoomTab(ttk.Frame):
             command=self.open_room_button
         ).pack(side='left', expand=True, fill='both', padx=2)
 
-        self.modify_room_button_state = tk.Button(
+        tk.Button(
             room_buttons_frame,
             text='Modify',
             command=self.modify_room_button
-        )
-        self.modify_room_button_state.pack(side='left', expand=True, fill='both', padx=2)
+        ).pack(side='left', expand=True, fill='both', padx=2)
 
         tk.Button(
             room_buttons_frame,
@@ -426,14 +420,6 @@ class RoomTab(ttk.Frame):
             textvariable=self.room_managed_by_variable,
         ).grid(row=5, column=2, sticky='ew')
 
-        # Employee ComboBox
-        self.employee_list = ttk.Combobox(
-            room_details_frame,
-            textvariable=self.employees_variable,
-            state='readonly'
-        )
-        self.populate_employee_list()
-
         # Placing Entries
         self.room_id_entry.grid(row=0, column=2, sticky='ew')
         self.room_number_entry.grid(row=1, column=2, sticky='ew')
@@ -442,26 +428,6 @@ class RoomTab(ttk.Frame):
         self.room_availability_entry.grid(row=4, column=2, sticky='ew')
 
         return room_details_frame
-
-    def room_modify_show_buttons(self, frame):
-        modify_room_frame = ttk.Frame(master=frame, borderwidth=10, relief='groove')
-        modify_room_frame.columnconfigure(0, weight=1, uniform='a')
-        modify_room_frame.rowconfigure((0, 1,), weight=1, uniform='a')
-
-        tk.Button(
-            modify_room_frame,
-            text='Apply',
-            command=self.apply_modify_button
-        ).pack(side='left', expand=True, fill='both', padx=2)
-
-        tk.Button(
-            modify_room_frame,
-            text='Cancel',
-            command=self.cancel_modify_button
-        ).pack(side='left', expand=True, fill='both', padx=2)
-
-        self.modify_frame = modify_room_frame
-        return modify_room_frame
 
     def populate_room_table(self):
         all_rooms = sql_connection.retrieve_rooms_list()
@@ -501,38 +467,19 @@ class RoomTab(ttk.Frame):
             self.room_managed_by_variable.set(employee_room_manager)
 
     def modify_room_button(self):
-
         if not self.rooms_treeview.focus():
             showwarning(title="Error!",
                         message='No room is selected!')
-
         else:
             highlighted_room = self.rooms_treeview.focus()
             selected_room = self.rooms_treeview.item(highlighted_room)
             selected_room_id = selected_room.get('values')[0]
-            retrieved_room = self.room_sql.retrieve_a_specific_room(selected_room_id)
-            confirm_modify = askyesno(title="Update room?",
-                                      message=f"You are about to update Room {selected_room.get('values')[1]}."
-                                              f"\nConfirm?")
-            if confirm_modify:
-                if self.room_sql.check_if_room_available(selected_room_id):
-                    self.room_modify_show_buttons(self.rooms_widgets_frame).pack(fill='x')
-                    self.room_number_entry.configure(state='normal')
-                    self.room_type_entry.configure(state='normal')
-                    self.room_price_entry.configure(state='normal')
-                    self.room_availability_entry.configure(state='normal')
-                    self.modify_room_button_state.configure(state='disabled')
-                    self.employee_list.grid(row=5, column=2, sticky='ew')
-
-                    self.room_id_variable.set(retrieved_room[0])
-                    self.room_number_variable.set(retrieved_room[1])
-                    self.room_type_variable.set(retrieved_room[2])
-                    self.room_price_variable.set(retrieved_room[3])
-                    self.room_availability_variable.set(retrieved_room[4])
-                else:
-                    showwarning(title="Error!",
-                                message='Cannot modify!\n'
-                                        'Room is currently occupied or unavailable!')
+            if self.room_sql.check_if_room_available(selected_room_id):
+                RoomModificationWindow(self, selected_room_id)
+            else:
+                showwarning(title="Error!",
+                            message='Cannot modify!\n'
+                                    'Room is currently occupied or unavailable!')
 
     def delete_room_button(self):
         if not self.rooms_treeview.focus():
@@ -565,55 +512,6 @@ class RoomTab(ttk.Frame):
         self.room_number_variable.set('')
         self.room_availability_variable.set('')
         self.room_managed_by_variable.set('')
-
-    def apply_modify_button(self):
-        confirm_delete = askyesno(title="Update!",
-                                  message=f"You are updating Room {self.room_id_variable.get()}.\nConfirm?")
-        employee_index = self.employee_list.current()
-        employee_id = self.get_employee_id_from_dictionary(employee_index)
-        if confirm_delete:
-            self.room_sql.update_room_information(self.room_id_variable.get(),
-                                                  self.room_number_variable.get(),
-                                                  self.room_type_variable.get(),
-                                                  self.room_price_variable.get(),
-                                                  employee_id,
-                                                  )
-            self.modify_frame.pack_forget()
-            self.room_number_entry.configure(state='readonly')
-            self.room_type_entry.configure(state='readonly')
-            self.room_price_entry.configure(state='readonly')
-            self.room_availability_entry.configure(state='readonly')
-            self.modify_room_button_state.configure(state='normal')
-            self.employee_list.grid_remove()
-        else:
-            pass
-
-    def cancel_modify_button(self):
-        self.modify_frame.pack_forget()
-        self.room_number_entry.configure(state='readonly')
-        self.room_type_entry.configure(state='readonly')
-        self.room_price_entry.configure(state='readonly')
-        self.room_availability_entry.configure(state='readonly')
-        self.modify_room_button_state.configure(state='normal')
-        self.employee_list.grid_remove()
-
-    def populate_employee_list(self):
-        """Populate the combo box of employees"""
-        all_employee = sql_connection.retrieve_employee_list()
-
-        for i in all_employee:
-            if i[-1] == 0:
-                employee_name = {"id": i[0], "names": (i[1], i[2]), "job_position": i[3]}
-
-                self.employees.append(employee_name)
-
-        self.employee_list['values'] = [items['names'] for items in self.employees]
-
-    def get_employee_id_from_dictionary(self, index):
-        if index >= 0:
-            selected_employee = self.employees[index]
-            employee_id = selected_employee['id']
-            return employee_id
 
 
 class ScheduleTab(ttk.Frame):
@@ -1362,7 +1260,7 @@ class GuestCreationWindow(tk.Toplevel):
             yy2 = int(self.check_out_year_variable.get())
             mm2 = int(self.check_out_month_variable.get())
             dd2 = int(self.check_out_day_variable.get())
-            if not self.check_date_valid(yy1, mm1, 1):
+            if not self.check_date_valid(yy1, mm1, dd1):
                 showwarning(title="Error", message="Improper Date!")
             elif not self.check_date_valid(yy2, mm2, dd2):
                 showwarning(title="Error", message="Improper Date!")
@@ -2114,8 +2012,198 @@ class RoomCreationWindow(tk.Toplevel):
         if index >= 0:
             selected_employee = self.employees[index]
             employee_id = selected_employee['id']
+            return employee_id
 
-        return employee_id
+
+class RoomModificationWindow(tk.Toplevel):
+    def __init__(self, root, selected_room_id):
+        super().__init__(root)
+
+        self.geometry('500x200')
+        self.minsize(400, 200)
+
+        self.title("Room Creation")
+
+        # Variables
+        self.modify_room_id_variable = tk.StringVar()
+        self.modify_room_name_variable = tk.StringVar()
+        self.modify_room_type_variable = tk.StringVar()
+        self.modify_room_price_variable = tk.StringVar()
+        self.current_employee_id_variable = tk.StringVar()
+        self.employee_list = ttk.Combobox()
+        self.employees_list_variable = tk.StringVar()
+        self.employee_id_variable = tk.StringVar()
+        self.current_frame = ttk.Frame()
+        self.employees = []
+        self.room_sql = RoomTabSQL()
+
+        self.retrieve_room_details(selected_room_id)
+
+        # Frame Placement
+        self.modify_basic_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.grab_set()
+
+    def modify_basic_room_information_frame(self):
+        """First Frame"""
+        modify_room_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        modify_room_frame.columnconfigure((0, 1), weight=1, uniform='a')
+        modify_room_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+
+        # Labels Information
+        ttk.Label(modify_room_frame, text="Room ID:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(modify_room_frame, text="Room Number:").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(modify_room_frame, text="Room Type:").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(modify_room_frame, text="Room Price:").grid(row=3, column=0, sticky='nsew')
+
+        # Entries for Input
+        ttk.Label(
+            modify_room_frame,
+            textvariable=self.modify_room_id_variable
+        ).grid(row=0, column=1, sticky='nsew')
+        ttk.Entry(
+            modify_room_frame,
+            textvariable=self.modify_room_name_variable
+        ).grid(row=1, column=1, sticky='nsew')
+
+        ttk.Entry(
+            modify_room_frame,
+            textvariable=self.modify_room_type_variable
+        ).grid(row=2, column=1, sticky='nsew')
+
+        ttk.Entry(
+            modify_room_frame,
+            textvariable=self.modify_room_price_variable
+        ).grid(row=3, column=1, sticky='nsew')
+
+        # Buttons
+        tk.Button(
+            modify_room_frame,
+            text="Next",
+            command=self.next_to_managed_by_button
+        ).grid(row=6, column=0, sticky='nsew')
+
+        tk.Button(
+            modify_room_frame,
+            text="Cancel",
+            command=self.cancel_button
+        ).grid(row=6, column=1, sticky='nsew')
+
+        self.current_frame = modify_room_frame
+        return modify_room_frame
+
+    def modify_room_managed_by_frame(self):
+        """Second Frame"""
+        managed_by_room_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        managed_by_room_frame.columnconfigure((0, 1, 2), weight=1, uniform='a')
+        managed_by_room_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+
+        # Labels Information
+        ttk.Label(
+            managed_by_room_frame,
+            text="Employee List"
+        ).grid(row=0, column=1, sticky='nsew')
+
+        ttk.Label(
+            managed_by_room_frame,
+            text="Employee"
+        ).grid(row=1, column=0, sticky='nsew')
+
+        ttk.Label(
+            managed_by_room_frame,
+            text="Current Managing: "
+        ).grid(row=3, column=0, sticky='nsew')
+
+        ttk.Label(
+            managed_by_room_frame,
+            textvariable=self.current_employee_id_variable
+        ).grid(row=3, column=1, sticky='nsew')
+
+        # Employee ComboBox
+        self.employee_list = ttk.Combobox(
+            managed_by_room_frame,
+            textvariable=self.employees_list_variable,
+            state='readonly'
+        )
+        self.populate_employee_list()
+        self.employee_list.grid(row=1, columnspan=2, column=1, sticky='nsew')
+
+        # Buttons
+        tk.Button(
+            managed_by_room_frame,
+            text="Confirm",
+            command=self.modify_confirm_room_button
+        ).grid(row=6, column=0, sticky='nsew')
+
+        tk.Button(
+            managed_by_room_frame,
+            text="Back",
+            command=self.back_to_basic_room_information_button
+        ).grid(row=6, column=1, sticky='nsew')
+
+        tk.Button(
+            managed_by_room_frame,
+            text="Cancel",
+            command=self.cancel_button
+        ).grid(row=6, column=2, sticky='nsew')
+
+        self.current_frame = managed_by_room_frame
+        return managed_by_room_frame
+
+    def next_to_managed_by_button(self):
+        """First Frame 'Next' Button"""
+        self.current_frame.pack_forget()
+        self.modify_room_managed_by_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def back_to_basic_room_information_button(self):
+        self.current_frame.pack_forget()
+        self.modify_basic_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def modify_confirm_room_button(self):
+        confirm_create_room = askyesno(title="Modify?",
+                                       message=f"You are about to update Room {self.modify_room_name_variable.get()}."
+                                               f"\nConfirm?")
+        if confirm_create_room:
+            employee_list_index = self.employee_list.current()
+            self.employee_id_variable.set(self.get_employee_id_from_dictionary(employee_list_index))
+            self.room_sql.update_room_information(self.modify_room_id_variable.get(),
+                                                  self.modify_room_name_variable.get(),
+                                                  self.modify_room_type_variable.get(),
+                                                  self.modify_room_price_variable.get(),
+                                                  self.employee_id_variable.get()
+                                                  )
+            self.destroy()
+
+    def cancel_button(self):
+        self.destroy()
+
+    def populate_employee_list(self):
+        """Populate the combo box of employees"""
+        all_employee = sql_connection.retrieve_employee_list()
+
+        for i in all_employee:
+            if i[-1] == 0:
+                employee_name = {"id": i[0], "names": (i[1], i[2]), "job_position": i[3]}
+
+                self.employees.append(employee_name)
+
+        self.employee_list['values'] = [items['names'] for items in self.employees]
+
+    def get_employee_id_from_dictionary(self, index):
+        if index >= 0:
+            selected_employee = self.employees[index]
+            employee_id = selected_employee['id']
+            return employee_id
+
+    def retrieve_room_details(self, index):
+        self.modify_room_id_variable.set(index)
+        retrieved_room = self.room_sql.retrieve_a_specific_room(index)
+
+        self.modify_room_name_variable.set(retrieved_room[1])
+        self.modify_room_type_variable.set(retrieved_room[2])
+        self.modify_room_price_variable.set(retrieved_room[3])
+        self.current_employee_id_variable.set(retrieved_room[5])
+
 
 
 App()

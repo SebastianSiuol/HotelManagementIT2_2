@@ -860,5 +860,3 @@ class RoomTabSQL:
             c.close()
             self.conn.close()
 
-
-
