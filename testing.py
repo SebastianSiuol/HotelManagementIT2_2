@@ -1,11 +1,25 @@
-from tkinter import *
-from tkinter.messagebox import *
+import tkinter as tk
 
+def hide_widget():
+    label.grid_remove()
 
-root = Tk()
+def show_widget():
+    label.grid()
 
-answer = askyesnocancel("yes")
+# Create the tkinter window
+window = tk.Tk()
+window.title("Hide Widgets Example")
 
-print(answer)
+# Create a label widget
+label = tk.Label(window, text="This is a label.")
+label.grid(row=0, column=0, pady=10)
 
-root.mainloop()
+# Create buttons to hide and show the label
+hide_button = tk.Button(window, text="Hide Label", command=hide_widget)
+hide_button.grid(row=1, column=0, pady=5)
+
+show_button = tk.Button(window, text="Show Label", command=show_widget)
+show_button.grid(row=1, column=1, pady=5)
+
+# Start the tkinter main loop
+window.mainloop()

@@ -791,3 +791,74 @@ class RoomTabSQL:
         finally:
             c.close()
             self.conn.close()
+
+    def create_a_room(self, room_name, room_type, room_price, employee_id):
+        """SQL Query for creating a room"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            soft_delete_room_query = """
+                        INSERT INTO Room(room_number, room_type, price, availability, employee_id, is_deleted) 
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """
+            c.execute(soft_delete_room_query, (room_name, room_type, room_price, 1, employee_id, 0,))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def check_if_room_available(self, room_id):
+        """SQL Query for creating a room"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        is_it_available = None
+
+        try:
+            room_availability = """
+                                SELECT availability
+                                FROM Room
+                                WHERE room_id = ?
+                            """
+            c.execute(room_availability, (room_id,))
+
+            is_it_available = c.fetchall()[0]
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+            return is_it_available[0]
+
+    def update_room_information(self, room_id, room_number, room_type, room_price, employee_id):
+        """SQL Query for updating a room """
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            update_room_query = """
+                        UPDATE Room
+                        SET room_number = ?, 
+                        room_type = ?, 
+                        price = ?, 
+                        employee_id = ?
+                        WHERE room_id = ?
+                    """
+            c.execute(update_room_query, (room_number, room_type, room_price, employee_id, room_id,))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+
+
