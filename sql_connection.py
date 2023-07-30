@@ -860,3 +860,113 @@ class RoomTabSQL:
             c.close()
             self.conn.close()
 
+
+class ScheduleTabSQL:
+    def __init__(self):
+        self.conn = None
+
+    def retrieve_all_schedule(self):
+        """SQL Query for retrieving all the schedule"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        all_schedules = []
+
+        try:
+            retrieve_schedules_query = "SELECT * FROM SCHEDULE"
+            c.execute(retrieve_schedules_query)
+            all_schedules = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return all_schedules
+
+    def insert_a_schedule(self, start_date, end_date):
+        """SQL Query for create a schedule"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            insert_a_schedules_query = """
+                INSERT INTO Schedule(start_date, end_date, availability)
+                VALUES(?, ?, 1)
+                """
+            c.execute(insert_a_schedules_query, (start_date,end_date,))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def hard_delete_a_schedule(self, schedule_id):
+        """SQL Query for permanently deleting a schedule"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            delete_a_schedules_query = """
+                DELETE FROM Schedule
+                WHERE schedule_id = ?
+                """
+            c.execute(delete_a_schedules_query, (schedule_id,))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def retrieve_a_schedule(self, schedule_id):
+        """SQL Query for retrieving a schedule"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            retrieve_schedules_query = """
+                SELECT start_date, end_date, availability
+                FROM SCHEDULE 
+                WHERE schedule_id = ?
+            """
+            c.execute(retrieve_schedules_query, (schedule_id,))
+            a_schedule = c.fetchall()[0]
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return a_schedule
+
+    def update_a_schedule(self, schedule_id, start_date, end_date):
+        """SQL Query for updating a schedule"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            update_a_schedules_query = """
+                UPDATE Schedule
+                Set start_date = ?, end_date = ?
+                WHERE schedule_id = ?
+                """
+            c.execute(update_a_schedules_query, (start_date, end_date, schedule_id))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+

@@ -5,7 +5,7 @@ import tkinter as tk
 from sql_connection import *
 from tkinter import ttk
 from tkinter.messagebox import *
-from datetime import date
+from datetime import date, timedelta, datetime
 
 
 class App(tk.Tk):
@@ -518,17 +518,19 @@ class ScheduleTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
+        # Entry Variables
         self.schedule_id_variable = tk.StringVar()
         self.schedule_start_date_variable = tk.StringVar()
         self.schedule_end_date_variable = tk.StringVar()
         self.schedule_availability_variable = tk.StringVar()
 
-        self.schedule_id_entry = None
-        self.schedule_start_date_entry = None
-        self.schedule_end_date_entry = None
-        self.schedule_availability_entry = None
+        #
+        self.schedules = []
 
-        self.schedules_list = None
+        # SQL Instance
+        self.schedule_sql = ScheduleTabSQL()
+
+        self.schedules_list = tk.Listbox
         self.schedule_list(self).pack(side='left', fill='both')
         self.schedule_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
@@ -536,17 +538,21 @@ class ScheduleTab(ttk.Frame):
     def schedule_list(self, frame):
         schedule_list_frame = ttk.Frame(master=frame)
         schedule_list_frame.configure(borderwidth=10, relief='groove')
+
+        # Label
         ttk.Label(
             schedule_list_frame,
             text='Schedules',
             font='Arial'
         ).pack(fill='x')
 
+        # Schedule List
         schedule_list_items = tk.StringVar()
         self.schedules_list = tk.Listbox(
             schedule_list_frame,
             listvariable=schedule_list_items
         )
+        self.populate_schedule_list()
 
         self.schedules_list.pack(expand=True, fill='both')
         return schedule_list_frame
@@ -586,6 +592,12 @@ class ScheduleTab(ttk.Frame):
             command=self.delete_schedule_button
         ).pack(side='left', expand=True, fill='both', padx=2)
 
+        tk.Button(
+            schedule_buttons_frame,
+            text='Refresh',
+            command=self.refresh_schedule_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
         schedule_buttons_frame.pack(fill='x')
         return schedule_buttons_frame
 
@@ -601,42 +613,91 @@ class ScheduleTab(ttk.Frame):
         ttk.Label(schedule_details_frame, text="Availability").grid(row=3, column=0, sticky='nsew')
 
         # Entries for Schedule
-        self.schedule_id_entry = ttk.Entry(
+        ttk.Entry(
             schedule_details_frame,
-            textvariable=self.schedule_id_variable
-        )
-        self.schedule_start_date_entry = ttk.Entry(
-            schedule_details_frame,
-            textvariable=self.schedule_start_date_variable
-        )
-        self.schedule_end_date_entry = ttk.Entry(
-            schedule_details_frame,
-            textvariable=self.schedule_end_date_variable
-        )
-        self.schedule_availability_entry = ttk.Entry(
-            schedule_details_frame,
-            textvariable=self.schedule_availability_variable
-        )
+            textvariable=self.schedule_id_variable,
+            state='readonly'
+        ).grid(row=0, column=1, sticky='ew')
 
-        # Packing the Entries
-        self.schedule_id_entry.grid(row=0, column=1, sticky='ew')
-        self.schedule_start_date_entry.grid(row=1, column=1, sticky='ew')
-        self.schedule_end_date_entry.grid(row=2, column=1, sticky='ew')
-        self.schedule_availability_entry.grid(row=3, column=1, sticky='ew')
+        ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_start_date_variable,
+            state='readonly'
+        ).grid(row=1, column=1, sticky='ew')
+
+        ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_end_date_variable,
+            state='readonly'
+        ).grid(row=2, column=1, sticky='ew')
+
+        ttk.Entry(
+            schedule_details_frame,
+            textvariable=self.schedule_availability_variable,
+            state='readonly'
+        ).grid(row=3, column=1, sticky='ew')
 
         return schedule_details_frame
 
     def new_schedule_button(self):
-        pass
+        ScheduleCreationWindow(self)
 
     def open_schedule_button(self):
-        pass
+        if not self.schedules_list.curselection():
+            showwarning("Error!", "No schedule selected!")
+        else:
+            selected_schedule_index = self.schedules_list.curselection()
+            selected_schedule = self.schedules[selected_schedule_index[0]]
+            self.schedule_id_variable.set(selected_schedule['id'])
+            self.schedule_start_date_variable.set(selected_schedule['start_date'])
+            self.schedule_end_date_variable.set(selected_schedule['end_date'])
+            self.schedule_availability_variable.set(selected_schedule['availability'])
 
     def modify_schedule_button(self):
-        pass
+        if not self.schedules_list.curselection():
+            showwarning("Error!", "No schedule selected!")
+        else:
+            selected_schedule_index = self.schedules_list.curselection()
+            selected_schedule = self.schedules[selected_schedule_index[0]]
+            ScheduleModificationWindow(self, selected_schedule['id'])
 
     def delete_schedule_button(self):
-        pass
+        if not self.schedules_list.curselection():
+            showwarning("Error!", "No schedule selected!")
+        else:
+            selected_schedule_index = self.schedules_list.curselection()
+            selected_schedule = self.schedules[selected_schedule_index[0]]
+            confirm_delete = askyesno(title="Delete schedule?",
+                                      message=f"You are deleting schedule ID: {selected_schedule['id']}.\n"
+                                              f"Confirm?")
+            if confirm_delete:
+                confirm_hard_delete = askyesno(
+                                        title="Delete schedule?",
+                                        message=f"Schedule ID:{selected_schedule ['id']} will be deleted permanently\n"
+                                                f"Are you sure?")
+                if confirm_hard_delete:
+                    self.schedule_sql.hard_delete_a_schedule(selected_schedule ['id'])
+
+
+    def refresh_schedule_button(self):
+        self.schedules_list.delete(0, 'end')
+        self.schedules.clear()
+        self.populate_schedule_list()
+
+    def populate_schedule_list(self):
+        """Populate the combo box of schedules"""
+        all_schedules = self.schedule_sql.retrieve_all_schedule()
+
+        for i in all_schedules:
+            schedules_details = {"id": i[0],
+                                 "start_date": i[1],
+                                 "end_date": i[2],
+                                 "availability": i[3]}
+
+            self.schedules.append(schedules_details)
+
+        for items in self.schedules:
+            self.schedules_list.insert(tk.END, items['start_date'])
 
 
 class EmployeeTab(ttk.Frame):
@@ -1323,7 +1384,7 @@ class GuestCreationWindow(tk.Toplevel):
             self.rooms_price_variable.set(selected_room[3])
 
     def get_date_button(self):
-        full_date = datetime.datetime.now()
+        full_date = datetime.now()
         today_date = str(full_date.date()).split("-")
         self.check_in_year_variable.set(today_date[0])
         self.check_in_month_variable.set(today_date[1])
@@ -2204,6 +2265,375 @@ class RoomModificationWindow(tk.Toplevel):
         self.modify_room_price_variable.set(retrieved_room[3])
         self.current_employee_id_variable.set(retrieved_room[5])
 
+
+class ScheduleCreationWindow(tk.Toplevel):
+    def __init__(self, root):
+        super().__init__(root)
+
+        # Window Configurations
+        self.geometry('500x200')
+        self.minsize(400, 200)
+        self.title('Schedule Creation')
+
+        # Variables
+        self.create_start_date_variable = tk.StringVar()
+        self.create_end_date_variable = tk.StringVar()
+        self.num_of_days = tk.StringVar()
+        self.current_frame = ttk.Frame()
+        self.sched_sql = ScheduleTabSQL()
+
+        # Frame Placement
+        self.create_basic_schedule_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.grab_set()
+
+    def create_basic_schedule_information_frame(self):
+        create_schedule_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        create_schedule_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        create_schedule_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
+
+        # Labels
+        ttk.Label(create_schedule_frame, text="Start Date").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(create_schedule_frame, text="End Date").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(create_schedule_frame, text='Number of Days').grid(row=3, column=0, sticky='nsew')
+        ttk.Label(create_schedule_frame, textvariable=self.num_of_days).grid(row=3, column=1, sticky='nsew')
+
+        # Entries
+        ttk.Entry(
+            create_schedule_frame,
+            textvariable=self.create_start_date_variable,
+        ).grid(row=1, column=1, sticky='nsew')
+
+        ttk.Entry(
+            create_schedule_frame,
+            textvariable=self.create_end_date_variable,
+        ).grid(row=2, column=1, sticky='nsew')
+
+        # Buttons
+        tk.Button(
+            create_schedule_frame,
+            text="Today",
+            command=self.today_button
+        ).grid(row=1, column=3, sticky='nsew')
+
+        tk.Button(
+            create_schedule_frame,
+            text="Add",
+            command=self.add_a_day_button
+        ).grid(row=2, column=3, sticky='nsew')
+
+        tk.Button(
+            create_schedule_frame,
+            text="Subtract",
+            command=self.subtract_a_day_button
+        ).grid(row=3, column=3, sticky='nsew')
+
+        tk.Button(
+            create_schedule_frame,
+            text="Confirm",
+            command=self.confirm_button
+        ).grid(row=5, columnspan=2, column=0, sticky='nsew')
+
+        tk.Button(
+            create_schedule_frame,
+            text="Cancel",
+            command=self.cancel_button
+        ).grid(row=5, columnspan=2, column=2, sticky='nsew')
+
+        self.current_frame = create_schedule_frame
+        return create_schedule_frame
+
+        # Button Frames
+    def today_button(self):
+        full_date_object = datetime.now()
+        yy_mm_dd_object = full_date_object.date()
+        self.create_start_date_variable.set(yy_mm_dd_object)
+        self.create_end_date_variable.set(yy_mm_dd_object)
+        self.num_of_days.set("0")
+
+    def add_a_day_button(self):
+        if self.validate_date_difference():
+            initial_date_str = self.create_start_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.create_end_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to that will be used calculate days
+        initial_day_str = self.create_start_date_variable.get()
+        initial_day_object = datetime.strptime(initial_day_str, '%Y-%m-%d')
+
+        new_date_object = initial_date_object + timedelta(days=1)
+        self.create_end_date_variable.set(new_date_object.strftime('%Y-%m-%d'))
+        days_object = new_date_object - initial_day_object
+        self.num_of_days.set(days_object.days)
+
+    def subtract_a_day_button(self):
+        if self.validate_date_difference():
+            initial_date_str = self.create_start_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.create_end_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to calculate days
+        initial_day_str = self.create_start_date_variable.get()
+        initial_day_object = datetime.strptime(initial_day_str, '%Y-%m-%d')
+        today_object = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if initial_date_object > today_object:
+            new_date_object = initial_date_object - timedelta(days=1)
+            self.create_end_date_variable.set(new_date_object.strftime('%Y-%m-%d'))
+            days_object = new_date_object - initial_day_object
+            self.num_of_days.set(days_object.days)
+        else:
+            pass
+
+    def confirm_button(self):
+        if not self.create_start_date_variable.get():
+            showwarning(title="Error!", message="Start Date is Empty!")
+        elif not self.create_end_date_variable.get():
+            showwarning(title="Error!", message="End Date is Empty!")
+        else:
+            if not self.validate_date():
+                showwarning(title="Error!", message="Please try again!")
+            else:
+                confirm_create = askyesno("Confirm?", "You will add a new schedule.\nConfirm?")
+                if confirm_create:
+                    self.sched_sql.insert_a_schedule(self.create_start_date_variable.get(),
+                                                     self.create_end_date_variable.get()
+                                                     )
+                    self.destroy()
+
+    def cancel_button(self):
+        self.destroy()
+
+    def validate_date(self):
+        start_date_str = self.create_start_date_variable.get()
+        end_date_str = self.create_end_date_variable.get()
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(hour=0,
+                                                                               minute=0,
+                                                                               second=0,
+                                                                               microsecond=0)
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+
+            if start_date >= end_date:
+                showwarning(title='Error',message="Start date cannot be greater than end date")
+                return False
+            else:
+                return True
+        except ValueError:
+            showwarning(title='Error',message="Invalid date format (use YYYY-MM-DD)")
+
+    def validate_date_difference(self):
+        start_date_str = self.create_start_date_variable.get()
+        end_date_str = self.create_end_date_variable.get()
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            if start_date >= end_date:
+                return True
+            else:
+                return False
+        except ValueError:
+            showwarning(title='Error', message="Invalid date format (use YYYY-MM-DD)")
+
+
+class ScheduleModificationWindow(tk.Toplevel):
+    def __init__(self, root, selected_sched):
+        super().__init__(root)
+
+        # Window Configurations
+        self.geometry('500x200')
+        self.minsize(400, 200)
+        self.title('Schedule Creation')
+
+        # Variables
+        self.selected_schedule_id = tk.StringVar()
+        self.modify_start_date_variable = tk.StringVar()
+        self.modify_end_date_variable = tk.StringVar()
+        self.num_of_days = tk.StringVar()
+        self.current_frame = ttk.Frame()
+        self.sched_sql = ScheduleTabSQL()
+
+        self.selected_schedule_id.set(selected_sched)
+
+        # Frame Placement
+        self.modify_basic_schedule_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.grab_set()
+
+    def modify_basic_schedule_information_frame(self):
+        modify_schedule_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        modify_schedule_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        modify_schedule_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
+        self.retrieve_schedule_information()
+
+        # Labels
+        ttk.Label(modify_schedule_frame, text="Schedule ID:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, textvariable=self.selected_schedule_id).grid(row=0, column=1, sticky='nsew')
+        ttk.Label(modify_schedule_frame, text="Start Date").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, text="End Date").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, text='Number of Days').grid(row=3, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, textvariable=self.num_of_days).grid(row=3, column=1, sticky='nsew')
+
+        # Entries
+        ttk.Entry(
+            modify_schedule_frame,
+            textvariable=self.modify_start_date_variable,
+        ).grid(row=1, column=1, sticky='nsew')
+
+        ttk.Entry(
+            modify_schedule_frame,
+            textvariable=self.modify_end_date_variable,
+        ).grid(row=2, column=1, sticky='nsew')
+
+        # Buttons
+        tk.Button(
+            modify_schedule_frame,
+            text="Today",
+            command=self.today_button
+        ).grid(row=1, column=3, sticky='nsew')
+
+        tk.Button(
+            modify_schedule_frame,
+            text="Add",
+            command=self.add_a_day_button
+        ).grid(row=2, column=3, sticky='nsew')
+
+        tk.Button(
+            modify_schedule_frame,
+            text="Subtract",
+            command=self.subtract_a_day_button
+        ).grid(row=3, column=3, sticky='nsew')
+
+        tk.Button(
+            modify_schedule_frame,
+            text="Confirm",
+            command=self.confirm_button
+        ).grid(row=5, columnspan=2, column=0, sticky='nsew')
+
+        tk.Button(
+            modify_schedule_frame,
+            text="Cancel",
+            command=self.cancel_button
+        ).grid(row=5, columnspan=2, column=2, sticky='nsew')
+
+        self.current_frame = modify_schedule_frame
+        return modify_schedule_frame
+
+        # Button Frames
+
+    def today_button(self):
+        full_date_object = datetime.now()
+        yy_mm_dd_object = full_date_object.date()
+        self.modify_start_date_variable.set(yy_mm_dd_object)
+        self.modify_end_date_variable.set(yy_mm_dd_object)
+        self.num_of_days.set("0")
+
+    def add_a_day_button(self):
+        if self.validate_date_difference():
+            initial_date_str = self.modify_start_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.modify_end_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to that will be used calculate days
+        initial_day_str = self.modify_start_date_variable.get()
+        initial_day_object = datetime.strptime(initial_day_str, '%Y-%m-%d')
+
+        new_date_object = initial_date_object + timedelta(days=1)
+        self.modify_end_date_variable.set(new_date_object.strftime('%Y-%m-%d'))
+        days_object = new_date_object - initial_day_object
+        self.num_of_days.set(days_object.days)
+
+    def subtract_a_day_button(self):
+        if self.validate_date_difference():
+            initial_date_str = self.modify_start_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.modify_end_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to calculate days
+        initial_day_str = self.modify_start_date_variable.get()
+        initial_day_object = datetime.strptime(initial_day_str, '%Y-%m-%d')
+        today_object = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if initial_date_object > today_object:
+            new_date_object = initial_date_object - timedelta(days=1)
+            self.modify_end_date_variable.set(new_date_object.strftime('%Y-%m-%d'))
+            days_object = new_date_object - initial_day_object
+            self.num_of_days.set(days_object.days)
+        else:
+            pass
+
+    def confirm_button(self):
+        if not self.modify_start_date_variable.get():
+            showwarning(title="Error!", message="Start Date is Empty!")
+        elif not self.modify_end_date_variable.get():
+            showwarning(title="Error!", message="End Date is Empty!")
+        else:
+            if not self.validate_date():
+                showwarning(title="Error!", message="Please try again!")
+            else:
+                confirm_create = askyesno("Confirm?",
+                                          message= f"You will update the schedule ID {self.selected_schedule_id.get()}."
+                                                    f"\nConfirm?")
+                if confirm_create:
+                    self.sched_sql.update_a_schedule(self.selected_schedule_id.get(),
+                                                     self.modify_start_date_variable.get(),
+                                                     self.modify_end_date_variable.get()
+                                                     )
+                    self.destroy()
+
+    def cancel_button(self):
+        self.destroy()
+
+    def validate_date(self):
+        start_date_str = self.modify_start_date_variable.get()
+        end_date_str = self.modify_end_date_variable.get()
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(hour=0,
+                                                                               minute=0,
+                                                                               second=0,
+                                                                               microsecond=0)
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+
+            if start_date >= end_date:
+                showwarning(title='Error',message="Start date cannot be greater than end date")
+                return False
+            else:
+                return True
+        except ValueError:
+            showwarning(title='Error',message="Invalid date format (use YYYY-MM-DD)")
+
+    def validate_date_difference(self):
+        start_date_str = self.modify_start_date_variable.get()
+        end_date_str = self.modify_end_date_variable.get()
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            if start_date >= end_date:
+                return True
+            else:
+                return False
+        except ValueError:
+            showwarning(title='Error', message="Invalid date format (use YYYY-MM-DD)")
+
+    def retrieve_schedule_information(self):
+        retrieved_schedule = self.sched_sql.retrieve_a_schedule(self.selected_schedule_id.get())
+
+        self.modify_start_date_variable.set(retrieved_schedule[0])
+        self.modify_end_date_variable.set(retrieved_schedule[1])
+
+
+class EmployeeCreationWindow:
+    pass
 
 
 App()
