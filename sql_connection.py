@@ -205,7 +205,7 @@ def retrieve_an_employee(id_index):
 
     try:
         c.execute("""SELECT employee_id,first_name,last_name,email,
-                        phone_number,job_position,manager_id FROM EMPLOYEE WHERE employee_id = ?""", (id_index,))
+                        phone_number,job_id,manager_id FROM EMPLOYEE WHERE employee_id = ?""", (id_index,))
         the_employee = c.fetchone()
 
     except sqlite3.Error as e:
@@ -968,5 +968,71 @@ class ScheduleTabSQL:
         finally:
             c.close()
             self.conn.close()
+
+
+class EmployeeTabSQL:
+    def __init__(self):
+        self.conn = None
+
+    def retrieve_all_employees(self):
+        """SQL Query for retrieving all the employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        all_employees = []
+
+        try:
+            retrieve_employee_query = "SELECT * FROM Employee"
+            c.execute(retrieve_employee_query)
+            all_employees = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return all_employees
+
+    def create_an_employee(self, first_name, last_name, email, phone_number, job_id, manager_id):
+        """SQL Query for creating an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            create_an_employee_query = """
+            INSERT INTO EMPLOYEE(
+            first_name, last_name, email, phone_number, job_id, manager_id, is_deleted)
+            VALUES(?, ?, ?, ?, ?, ?, ?)"""
+            c.execute(create_an_employee_query, (first_name, last_name, email, phone_number, job_id, manager_id, 0,))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def retrieve_jobs(self):
+        """SQL Query for retrieving all jobs"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        all_jobs = []
+
+        try:
+            retrieve_jobs_query = "SELECT * FROM Jobs"
+            c.execute(retrieve_jobs_query)
+            all_jobs = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return all_jobs
+
 
 
