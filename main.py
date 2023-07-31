@@ -1,6 +1,9 @@
 import datetime
+import tkinter
+
 import sql_connection
 import re
+import traceback
 import tkinter as tk
 from sql_connection import *
 from tkinter import ttk
@@ -31,11 +34,13 @@ class HotelTabs(ttk.Notebook):
         self.schedule_tab = ScheduleTab(self)
         self.employee_tab = EmployeeTab(self)
         self.billing_tab = BillingTab(self)
+        self.job_tab = JobsTab(self)
         self.add(self.guest_tab, text='Guests')
         self.add(self.room_tab, text='Rooms')
         self.add(self.employee_tab, text='Employees')
         self.add(self.schedule_tab, text='Schedules')
         self.add(self.billing_tab, text='Bills')
+        self.add(self.job_tab, text='Jobs')
 
         self.pack(expand=True, fill="both")
 
@@ -55,35 +60,38 @@ class GuestTab(ttk.Frame):
         self.guest_room_number_variable = tk.StringVar()
         self.guest_ongoing_payment_variable = tk.StringVar()
 
-        self.guest_id_entry = None
-        self.guest_firstname_entry = None
-        self.guest_lastname_entry = None
-        self.guest_email_entry = None
-        self.guest_phone_number_entry = None
-        self.guest_room_number_entry = None
+        self.guest_sql = GuestTabSQL()
 
-        self.guests_list(self).pack(side='left', fill='y')
+        self.guest_id_entry = tk.Entry()
+        self.guest_firstname_entry = tk.Entry()
+        self.guest_lastname_entry = tk.Entry()
+        self.guest_email_entry = tk.Entry()
+        self.guest_phone_number_entry = tk.Entry()
+        self.guest_room_number_entry = tk.Entry()
+
+        self.guests_table(self).pack(side='left', fill='y')
         self.guests_widgets().pack(side='left', expand=True, fill='both')
         self.pack()
 
-    def guests_list(self, frame):
+    def guests_table(self, frame):
         guests_table_frame = ttk.Frame(master=frame)
         guests_table_frame.configure(borderwidth=10, relief='groove')
         self.guests_treeview = ttk.Treeview(
             master=guests_table_frame,
-            columns=('guest_id', 'first_name', 'last_name'),
+            columns=('guest_id', 'fullname', 'room_assigned', 'check_in_out'),
             show='headings',
-            selectmode='browse',
-            height=50
+            selectmode='browse'
         )
 
         self.guests_treeview.heading('guest_id', text='Guest ID')
-        self.guests_treeview.heading('first_name', text='First Name')
-        self.guests_treeview.heading('last_name', text='Last Name')
+        self.guests_treeview.heading('fullname', text='Full Name')
+        self.guests_treeview.heading('room_assigned', text='Room Assigned')
+        self.guests_treeview.heading('check_in_out', text='Check In:Check Out')
 
-        self.guests_treeview.column('guest_id', width=120)
-        self.guests_treeview.column('first_name', width=120)
-        self.guests_treeview.column('last_name', width=120)
+        self.guests_treeview.column('guest_id', width=60)
+        self.guests_treeview.column('fullname', width=120)
+        self.guests_treeview.column('room_assigned', width=100)
+        self.guests_treeview.column('check_in_out', width=150)
 
         self.guests_treeview.pack(expand=True, fill='both')
         self.populate_guests_list()
@@ -187,19 +195,12 @@ class GuestTab(ttk.Frame):
         guests_details_frame.pack(expand=True, fill='both')
         return guests_details_frame
 
-    def populate_guests_list(self):
-        guests = sql_connection.retrieve_guest_lists()
-        for i in guests:
-            if i[-1] == 0:
-                self.guests_treeview.insert(
-                    parent='',
-                    index=tk.END,
-                    iid=None,
-                    values=(i[0], i[1], i[2])
-                )
+    # Frames
+    ##########################################################
+    # Button Functions
 
     def new_guest_button(self):
-        GuestCreationWindow(self, "New Guest Creation")
+        GuestCreationWindow(self)
 
     def open_guest_button(self):
         if not self.guests_treeview.focus():
@@ -265,6 +266,21 @@ class GuestTab(ttk.Frame):
         for item in self.guests_treeview.get_children():
             self.guests_treeview.delete(item)
         self.populate_guests_list()
+
+    # Button Functions
+    ##########################################################
+    # Logics
+
+    def populate_guests_list(self):
+        guests = self.guest_sql.retrieve_guest_list_to_populate_table()
+        for i in guests:
+            if i[-1] == 0:
+                self.guests_treeview.insert(
+                    parent='',
+                    index=tk.END,
+                    iid=None,
+                    values=(i[0], i[1], i[2], i[3])
+                )
 
     def clear_entries(self):
         self.guest_id_variable.set("")
@@ -531,11 +547,11 @@ class ScheduleTab(ttk.Frame):
         self.schedule_sql = ScheduleTabSQL()
 
         self.schedules_list = tk.Listbox
-        self.schedule_list(self).pack(side='left', fill='both')
+        self.schedule_table(self).pack(side='left', fill='both')
         self.schedule_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
 
-    def schedule_list(self, frame):
+    def schedule_table(self, frame):
         schedule_list_frame = ttk.Frame(master=frame)
         schedule_list_frame.configure(borderwidth=10, relief='groove')
 
@@ -703,7 +719,7 @@ class EmployeeTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
-        self.manager_name = None
+        self.manager_name_label = tk.Label()
         self.job_position = None
         self.employee_treeview = None
 
@@ -716,13 +732,16 @@ class EmployeeTab(ttk.Frame):
         self.employee_id_entry = None
 
         # StringVars
+        self.manager_id_variable = tk.IntVar()
         self.employee_job_position_variable = tk.StringVar()
-        self.employee_manager_variable = tk.StringVar()
         self.employee_phone_number_variable = tk.StringVar()
         self.employee_email_variable = tk.StringVar()
         self.employee_lastname_variable = tk.StringVar()
         self.employee_firstname_variable = tk.StringVar()
         self.employee_id_variable = tk.StringVar()
+        self.manager_name_variable = tk.StringVar()
+
+        self.employee_sql = EmployeeTabSQL()
 
         self.employee_table(self).pack(side='left', expand=True, fill='both')
         self.employee_widgets(self).pack(side='left', expand=True, fill='both')
@@ -733,18 +752,18 @@ class EmployeeTab(ttk.Frame):
         employee_table_frame.configure(borderwidth=10, relief='groove')
         self.employee_treeview = ttk.Treeview(
             master=employee_table_frame,
-            columns=('employee_id', 'first_name', 'last_name'),
+            columns=('employee_id', 'full_name', 'job_title'),
             show='headings',
             selectmode='browse'
         )
 
         self.employee_treeview.heading('employee_id', text='Employee ID')
-        self.employee_treeview.heading('first_name', text='First Name')
-        self.employee_treeview.heading('last_name', text='Last Name')
+        self.employee_treeview.heading('full_name', text='Full Name')
+        self.employee_treeview.heading('job_title', text='Job Title')
 
         self.employee_treeview.column('employee_id', width=120)
-        self.employee_treeview.column('first_name', width=120)
-        self.employee_treeview.column('last_name', width=120)
+        self.employee_treeview.column('full_name', width=120)
+        self.employee_treeview.column('job_title', width=120)
 
         self.employee_treeview.pack(expand=True, fill='both')
 
@@ -841,9 +860,9 @@ class EmployeeTab(ttk.Frame):
             employee_details_frame,
             textvariable=self.employee_job_position_variable
         )
-        self.manager_name = tk.Label(
+        self.manager_name_label = tk.Label(
             employee_details_frame,
-            textvariable=self.employee_manager_variable
+            textvariable=self.manager_name_variable
         )
 
         # Placing the Entries/Texts
@@ -853,12 +872,12 @@ class EmployeeTab(ttk.Frame):
         self.employee_email_entry.grid(row=3, columnspan=2, column=2, sticky='ew')
         self.employee_phone_entry.grid(row=4, columnspan=2, column=2, sticky='ew')
         self.job_position.grid(row=5, columnspan=2, column=2, sticky='ew')
-        self.manager_name.grid(row=6, columnspan=2, column=2, sticky='ew')
+        self.manager_name_label.grid(row=6, columnspan=2, column=2, sticky='ew')
 
         return employee_details_frame
 
     def populate_employee_list(self):
-        employees = sql_connection.retrieve_employee_list()
+        employees = self.employee_sql.retrieve_employees_to_populate_list()
         for i in employees:
             if i[-1] == 0:
                 self.employee_treeview.insert(
@@ -879,7 +898,9 @@ class EmployeeTab(ttk.Frame):
             highlighted_employee = self.employee_treeview.focus()
             selected_employee = self.employee_treeview.item(highlighted_employee)
             selected_employee_id = selected_employee.get('values')[0]
-            retrieved_employee = sql_connection.retrieve_an_employee(selected_employee_id)
+            retrieved_employee = self.employee_sql.retrieve_a_specific_employee(selected_employee_id)
+
+            print(retrieved_employee)
 
             self.employee_id_variable.set(retrieved_employee[0])
             self.employee_firstname_variable.set(retrieved_employee[1])
@@ -887,32 +908,61 @@ class EmployeeTab(ttk.Frame):
             self.employee_email_variable.set(retrieved_employee[3])
             self.employee_phone_number_variable.set(retrieved_employee[4])
             self.employee_job_position_variable.set(retrieved_employee[5])
+            self.manager_id_variable.set(retrieved_employee[6])
 
             if retrieved_employee[6] is None:
-                self.employee_manager_variable.set('No Manager')
+                self.manager_name_variable.set('No Manager')
             else:
-                manager_details = sql_connection.retrieve_manager(retrieved_employee[6])
-                manager_name = f'{manager_details[0]} {manager_details[1]}'
-                self.employee_manager_variable.set(manager_name)
+                manager_name = self.employee_sql.retrieve_a_manager(self.manager_id_variable.get())
+                self.manager_name_variable.set(manager_name[0])
 
     def modify_employee_button(self):
         if not self.employee_treeview.focus():
             showwarning(title="Error!",
                         message='No Employee is selected!')
         else:
-            pass
+            employee_index = self.employee_treeview.focus()
+            selected_employee = self.employee_treeview.item(employee_index)
+            selected_employee_id = selected_employee.get('values')[0]
+            selected_employee_name = (selected_employee.get('values')[1]).split(" ")
+            confirm_modify = askyesno(title="Modify?",
+                                      message=f"You are about to modify {selected_employee_name[0]}'s information"
+                                              f".\nContinue?")
+            if confirm_modify:
+                EmployeeModificationWindow(self, selected_employee_id)
 
     def refresh_employee_button(self):
         for item in self.employee_treeview.get_children():
             self.employee_treeview.delete(item)
         self.populate_employee_list()
 
+        self.manager_id_variable = tk.IntVar()
+        self.employee_job_position_variable.set('')
+        self.employee_phone_number_variable.set('')
+        self.employee_email_variable.set('')
+        self.employee_lastname_variable.set('')
+        self.employee_firstname_variable.set('')
+        self.employee_id_variable.set('')
+        self.manager_name_variable.set('')
+
     def delete_employee_button(self):
         if not self.employee_treeview.focus():
             showwarning(title="Error!",
                         message='No Employee is selected!')
         else:
-            pass
+            employee_index = self.employee_treeview.focus()
+            selected_employee = self.employee_treeview.item(employee_index)
+            selected_employee_id = selected_employee.get('values')[0]
+            selected_employee_name = (selected_employee.get('values')[1]).split(" ")
+            confirm_delete = askyesno(title="Delete?",
+                                      message=f"You are about to delete {selected_employee_name[0]}"
+                                              f".\nContinue?")
+            if confirm_delete:
+                if self.employee_sql.check_if_employee_still_manages(selected_employee_id):
+                    showwarning(title="Error!",
+                                message='Employee is managing other employees!\nCannot delete!')
+                else:
+                    self.employee_sql.soft_delete_an_employee(selected_employee_id)
 
     def assign_schedule_button(self):
         if not self.employee_treeview.focus():
@@ -926,12 +976,14 @@ class BillingTab(ttk.Frame):
     def __init__(self, root):
         super().__init__(master=root)
 
-        self.bills_treeview = None
+        self.bills_treeview = ttk.Treeview()
 
-        self.bills_id_variable = tk.StringVar()
+        self.bills_id_variable = tk.IntVar()
         self.bills_guest_variable = tk.StringVar()
         self.bills_total_price_variable = tk.StringVar()
         self.bills_payment_info_variable = tk.StringVar()
+
+        self.bills_sql = BillTabSQL()
 
         self.bills_table(self).pack(side='left', expand=True, fill='both')
         self.bills_widgets(self).pack(side='left', expand=True, fill='both')
@@ -990,6 +1042,12 @@ class BillingTab(ttk.Frame):
             command=self.refresh_bills_table
         ).pack(side='left', expand=True, fill='both', padx=2)
 
+        tk.Button(
+            bills_buttons_frame,
+            text='Assign Employee',
+            command=self.assign_employee_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
         bills_buttons_frame.pack(fill='x')
 
         return bills_buttons_frame
@@ -1028,27 +1086,63 @@ class BillingTab(ttk.Frame):
 
         return bills_details_frame
 
-    def open_bills_button(self):
-        bills_index = self.bills_treeview.focus()
-        selected_bill = self.bills_treeview.item(bills_index)
-        selected_bill_id = selected_bill.get('values')[0]
-        retrieved_bill = sql_connection.retrieve_a_bill_and_guest(selected_bill_id)
+    # Frames
+    ##########################################################
+    # Button Functions
 
-        self.bills_id_variable.set(retrieved_bill[0])
-        self.bills_guest_variable.set(retrieved_bill[1])
-        self.bills_total_price_variable.set(retrieved_bill[2])
-        self.bills_payment_info_variable.set(retrieved_bill[3])
+    def open_bills_button(self):
+        if not self.bills_treeview.focus():
+            showwarning(title="Error!",
+                        message='No Bill is selected!')
+        else:
+            bills_index = self.bills_treeview.focus()
+            selected_bill = self.bills_treeview.item(bills_index)
+            selected_bill_id = selected_bill.get('values')[0]
+            retrieved_bill = sql_connection.retrieve_a_bill_and_guest(selected_bill_id)
+
+            self.bills_id_variable.set(retrieved_bill[0])
+            self.bills_guest_variable.set(retrieved_bill[1])
+            self.bills_total_price_variable.set(retrieved_bill[2])
+            self.bills_payment_info_variable.set(retrieved_bill[3])
 
     def pay_bills_button(self):
-        bills_index = self.bills_treeview.focus()
-        selected_bill = self.bills_treeview.item(bills_index)
-        selected_bill_id = selected_bill.get('values')[0]
-        selected_bill_guest = selected_bill.get('values')[1]
-        confirm_pay = askyesno(title="Pay?",
-                               message=f"{selected_bill_guest}'s bill is about to be paid.\nConfirm?")
-        if confirm_pay:
-            sql_connection.pay_bills(selected_bill_id)
-            self.refresh_bills_table()
+        if not self.bills_treeview.focus():
+            showwarning(title="Error!",
+                        message='No Bill is selected!')
+        else:
+            bills_index = self.bills_treeview.focus()
+            selected_bill = self.bills_treeview.item(bills_index)
+            selected_bill_id = selected_bill.get('values')[0]
+            selected_bill_guest = selected_bill.get('values')[1]
+            if self.check_if_bill_has_employee(selected_bill_id):
+                confirm_pay = askyesno(title="Process the bill?",
+                                       message=f"{selected_bill_guest}'s bill is about to be paid.\nConfirm?")
+                if confirm_pay:
+                    self.bills_sql.pay_bills(selected_bill_id)
+                    self.refresh_bills_table()
+            else:
+                showwarning(title="Error!",
+                            message='Selected bill should have an employee before procesing!')
+
+    def refresh_bills_table(self):
+        for item in self.bills_treeview.get_children():
+            self.bills_treeview.delete(item)
+        self.populate_bill_list()
+
+    def assign_employee_button(self):
+        if not self.bills_treeview.focus():
+            showwarning(title="Error!",
+                        message='No Bill is selected!')
+        else:
+            bills_index = self.bills_treeview.focus()
+            selected_bill = self.bills_treeview.item(bills_index)
+            selected_bill_id = selected_bill.get('values')[0]
+            selected_bill_guest = selected_bill.get('values')[1]
+            AssignEmployeeToBill(self, selected_bill_id)
+
+    # Button Functions
+    ##########################################################
+    # Logics
 
     def populate_bill_list(self):
         bill_items = sql_connection.retrieve_bills_and_guest()
@@ -1061,20 +1155,196 @@ class BillingTab(ttk.Frame):
                     values=(i[0], i[1], i[2])
                 )
 
-    def refresh_bills_table(self):
-        for item in self.bills_treeview.get_children():
-            self.bills_treeview.delete(item)
-        self.populate_bill_list()
+    def check_if_bill_has_employee(self, bill_id):
+        if self.bills_sql.does_bill_have_employee(bill_id):
+            return True
+        else:
+            return False
+
+
+
+class JobsTab(ttk.Frame):
+    def __init__(self, root):
+        super().__init__(master=root)
+
+        self.jobs_id_variable = tk.IntVar()
+        self.jobs_title_variable = tk.StringVar()
+        self.jobs_department_variable = tk.StringVar()
+
+        self.jobs_treeview = ttk.Treeview()
+        self.jobs_treeview_variables = tk.StringVar()
+
+        self.jobs_sql = JobsTabSQL()
+
+        self.jobs_table().pack(side='left', expand=True, fill='both')
+        self.jobs_widgets().pack(side='left', expand=True, fill='both')
+        self.pack()
+
+    def jobs_table(self):
+        jobs_table_frame = ttk.Frame(self)
+        jobs_table_frame.configure(borderwidth=10, relief='groove')
+
+        self.jobs_treeview = ttk.Treeview(
+            master=jobs_table_frame,
+            columns=('job_id', 'job_title', 'job_department'),
+            show='headings',
+            selectmode='browse'
+        )
+        self.jobs_treeview.heading('job_id', text='Job ID')
+        self.jobs_treeview.heading('job_title', text='Job Title')
+        self.jobs_treeview.heading('job_department', text='Job Department')
+
+        self.jobs_treeview.column('job_id', width=20)
+        self.jobs_treeview.column('job_title', width=20)
+        self.jobs_treeview.column('job_department', width=20)
+
+        self.jobs_treeview.pack(expand=True, fill='both')
+        self.populate_jobs_table()
+        return jobs_table_frame
+
+    def jobs_widgets(self):
+        jobs_widgets_container_frame = ttk.Frame(self)
+        jobs_widgets_container_frame.configure(borderwidth=10, relief='groove')
+
+        self.jobs_buttons().pack(fill='x')
+        self.jobs_details().pack(expand=True, fill='both')
+
+        return jobs_widgets_container_frame
+
+    def jobs_buttons(self):
+        jobs_widgets_container_frame = ttk.Frame(self)
+        jobs_widgets_container_frame.configure(borderwidth=10, relief='groove')
+
+        tk.Button(
+            jobs_widgets_container_frame,
+            text='New',
+            command=self.new_jobs_button
+        ).pack(side='left', expand=True, fill='both', padx=2, )
+
+        tk.Button(
+            jobs_widgets_container_frame,
+            text='Open',
+            command=self.open_jobs_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            jobs_widgets_container_frame,
+            text='Modify',
+            command=self.modify_jobs_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            jobs_widgets_container_frame,
+            text='Delete',
+            command=self.delete_jobs_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        tk.Button(
+            jobs_widgets_container_frame,
+            text='Refresh',
+            command=self.refresh_jobs_button
+        ).pack(side='left', expand=True, fill='both', padx=2)
+
+        return jobs_widgets_container_frame
+
+    def jobs_details(self):
+        jobs_details_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        jobs_details_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        jobs_details_frame.rowconfigure((0, 1, 2, 3), weight=1, uniform='a')
+
+        ttk.Label(jobs_details_frame, text="Job ID:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(jobs_details_frame, text="Job Title:").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(jobs_details_frame, text="Job Department:").grid(row=2, column=0, sticky='nsew')
+
+        ttk.Entry(
+            jobs_details_frame,
+            textvariable=self.jobs_id_variable,
+            state='readonly'
+        ).grid(row=0, column=1, sticky='ew')
+
+        ttk.Entry(
+            jobs_details_frame,
+            textvariable=self.jobs_title_variable,
+            state='readonly'
+        ).grid(row=1, column=1, sticky='ew')
+
+        ttk.Entry(
+            jobs_details_frame,
+            textvariable=self.jobs_department_variable,
+            state='readonly'
+        ).grid(row=2, column=1, sticky='ew')
+
+        return jobs_details_frame
+
+    # Widgets
+    ##########################################################
+    # Button Functions
+
+    def new_jobs_button(self):
+        JobsCreationWindow(self)
+
+    def open_jobs_button(self):
+        self.populate_jobs_table()
+
+    def modify_jobs_button(self):
+        pass
+
+    def delete_jobs_button(self):
+        if not self.jobs_treeview.focus():
+            showwarning(title="Error!",
+                        message='No room is selected!')
+        else:
+
+            highlighted_jobs = self.jobs_treeview.focus()
+            selected_jobs = self.jobs_treeview.item(highlighted_jobs)
+            selected_jobs_id = selected_jobs.get('values')[0]
+            confirm_delete = askyesno(title="Warning!",
+                                      message=f"You are about to delete Job: {selected_jobs.get('values')[1]}."
+                                              f"\nConfirm?")
+            if confirm_delete:
+                if selected_jobs_id == 4:
+                    showerror(title="Error!",
+                              message='The manager job cannot be deleted!')
+                else:
+                    if self.jobs_sql.check_if_job_is_referenced(selected_jobs_id):
+                        showerror(title="Error!",
+                                  message='The selected job is still being used!\nCannot delete!')
+                    else:
+                        confirm_hard_delete = askyesno(title="Warning!",
+                                                       message=f"You are about to permanently "
+                                                               f"delete the Job: {selected_jobs.get('values')[1]}."
+                                                               f"\nContinue?")
+                        if confirm_hard_delete:
+                            self.jobs_sql.hard_delete_job(selected_jobs_id)
+
+    def refresh_jobs_button(self):
+        for job in self.jobs_treeview.get_children():
+            self.jobs_treeview.delete(job)
+        self.populate_jobs_table()
+
+    # Button Functions
+    ##########################################################
+    # Logics
+
+    def populate_jobs_table(self):
+        all_retrieved_jobs = self.jobs_sql.retrieve_all_jobs()
+        for jobs in all_retrieved_jobs:
+            self.jobs_treeview.insert(
+                parent='',
+                index=tk.END,
+                iid=None,
+                values=(jobs[0], jobs[1], jobs[2])
+            )
 
 
 class GuestCreationWindow(tk.Toplevel):
-    def __init__(self, root, window_title):
+    def __init__(self, root):
         super().__init__(root)
 
         self.geometry('500x200')
         self.minsize(400, 200)
 
-        self.title(window_title)
+        self.title('Create new guest')
 
         # Basic Guest Information Variables
         self.firstname_variable = tk.StringVar()
@@ -1082,11 +1352,11 @@ class GuestCreationWindow(tk.Toplevel):
         self.email_variable = tk.StringVar()
         self.phone_number_variable = tk.StringVar()
         self.payment_method_variable = tk.StringVar()
-        self.guest_name_variable = tk.StringVar()
+        self.fullname_variable = tk.StringVar()
 
         # Room Variables
         self.rooms_variable = tk.StringVar()
-        self.rooms_id_variable = tk.StringVar()
+        self.rooms_id_variable = tk.IntVar()
         self.rooms_name_variable = tk.StringVar()
         self.rooms_type_variable = tk.StringVar()
         self.rooms_price_variable = tk.StringVar()
@@ -1104,10 +1374,13 @@ class GuestCreationWindow(tk.Toplevel):
 
         self.rooms = []
         self.select_type_guest = ttk.Combobox()
-        self.guest_type = tk.StringVar()
         self.select_number_of_guest = ttk.Combobox()
-        self.guest_numbers = tk.StringVar()
         self.select_rooms_list = ttk.Combobox()
+
+        self.create_a_guest_sql = CreateAGuest()
+
+        self.guest_type = tk.StringVar()
+        self.guest_numbers = tk.IntVar()
         self.current_frame = ttk.Frame()
 
         self.create_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
@@ -1137,7 +1410,7 @@ class GuestCreationWindow(tk.Toplevel):
         )
         self.select_number_of_guest.grid(row=5, column=1, sticky='nsew')
         self.populate_guests_num_listbox()
-        self.select_number_of_guest.current()
+        self.select_number_of_guest.current(0)
 
         # Listbox of Type
         self.select_type_guest = ttk.Combobox(
@@ -1196,14 +1469,14 @@ class GuestCreationWindow(tk.Toplevel):
         assign_to_a_room_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
         assign_to_a_room_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
 
-        self.guest_name_variable.set(f'{self.firstname_variable.get()} {self.lastname_variable.get()}')
+        self.fullname_variable.set(f'{self.firstname_variable.get()} {self.lastname_variable.get()}')
 
         # Labels
         ttk.Label(assign_to_a_room_frame, text='Name: ').grid(row=0, column=0, sticky='nsew')
         ttk.Label(assign_to_a_room_frame, text='Room').grid(row=1, column=0, sticky='nsew')
         ttk.Label(assign_to_a_room_frame, text='Room Type:').grid(row=2, column=0, sticky='nsew')
         ttk.Label(assign_to_a_room_frame, text='Room Price:').grid(row=3, column=0, sticky='nsew')
-        ttk.Label(assign_to_a_room_frame, textvariable=self.guest_name_variable).grid(row=0, column=1, sticky='nsew')
+        ttk.Label(assign_to_a_room_frame, textvariable=self.fullname_variable).grid(row=0, column=1, sticky='nsew')
         ttk.Label(assign_to_a_room_frame, textvariable=self.rooms_type_variable).grid(row=2, column=1, sticky='nsew')
         ttk.Label(assign_to_a_room_frame, textvariable=self.rooms_price_variable).grid(row=3, column=1, sticky='nsew')
 
@@ -1309,7 +1582,7 @@ class GuestCreationWindow(tk.Toplevel):
         )
         self.calculate_total_price()
         # Labels again with variables
-        ttk.Label(confirm_frame, textvariable=self.guest_name_variable).grid(row=1, column=1, sticky='nsew')
+        ttk.Label(confirm_frame, textvariable=self.fullname_variable).grid(row=1, column=1, sticky='nsew')
         ttk.Label(confirm_frame, textvariable=self.rooms_id_variable).grid(row=2, column=1, sticky='nsew')
         ttk.Label(confirm_frame, textvariable=self.rooms_price_variable).grid(row=3, column=1, sticky='nsew')
         ttk.Label(confirm_frame, textvariable=self.rooms_type_variable).grid(row=4, column=1, sticky='nsew')
@@ -1337,22 +1610,13 @@ class GuestCreationWindow(tk.Toplevel):
 
     def next_to_create_rooms_button(self):
         """First Frame 'Next' Button"""
-        if not self.firstname_variable.get():
-            showwarning("Error!", "No First Name Entered!")
-        elif not self.lastname_variable.get():
-            showwarning("Error!", "No Last Name Entered!")
-        elif not self.email_variable.get():
-            showwarning("Error!", "No Email Entered!")
+        print(self.phone_number_variable.get())
+        if self.if_first_frame_entry_is_empty():
+            showwarning("Error!", "Please fill in all the blanks!")
         elif not self.check_phone_number_valid():
             showwarning("Error!", "Phone Number is Not Valid!")
         elif not self.check_email_valid(self.email_variable.get()):
             showwarning("Error!", "Enter Valid Email!")
-        elif not self.payment_method_variable.get():
-            showwarning("Error!", "No Payment Info Entered!")
-        elif not self.select_number_of_guest.get():
-            showwarning("Error!", "Select Number of Guest!")
-        elif not self.select_type_guest.get():
-            showwarning("Error!", "Select Guest Type!")
         else:
             self.current_frame.pack_forget()
             self.create_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
@@ -1367,6 +1631,10 @@ class GuestCreationWindow(tk.Toplevel):
 
     def back_to_create_basic_information_button(self):
         """Second Frame 'Back' Button"""
+        self.rooms_id_variable.set('')
+        self.rooms_name_variable.set('')
+        self.rooms_type_variable.set('')
+        self.rooms_price_variable.set('')
         self.current_frame.pack_forget()
         self.create_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
@@ -1397,17 +1665,24 @@ class GuestCreationWindow(tk.Toplevel):
         """Fourth Frame 'Submit' Button"""
         confirm = askyesno(title="Confirm Guest?", message="Confirm Guest?")
         if confirm:
-            sql_connection.create_a_guest(
-                self.firstname_variable.get(),
-                self.lastname_variable.get(),
-                self.email_variable.get(),
-                self.phone_number_variable.get(),
-                self.payment_method_variable.get(),
-                self.check_in_date_variable.get(),
-                self.check_out_date_variable.get(),
-                self.rooms_total_price_variable.get(),
-                self.rooms_id_variable.get()
-            )
+            self.create_a_guest_sql.create_a_guest(self.firstname_variable.get(),
+                                                   self.lastname_variable.get(),
+                                                   self.email_variable.get(),
+                                                   self.phone_number_variable.get(),
+                                                   self.payment_method_variable.get()
+                                                   )
+            latest_guest_id = self.create_a_guest_sql.get_latest_guest_id()
+            latest_billing_id = self.create_a_guest_sql.creates_billing_record(self.rooms_total_price_variable.get(),
+                                                                               self.payment_method_variable.get())
+            self.create_a_guest_sql.creates_visit_record(self.guest_type.get(),
+                                                         self.guest_numbers.get(),
+                                                         self.check_in_date_variable.get(),
+                                                         self.check_out_date_variable.get(),
+                                                         latest_guest_id,
+                                                         self.rooms_id_variable.get(),
+                                                         latest_billing_id
+                                                         )
+            self.create_a_guest_sql.set_room_availability(self.rooms_id_variable.get())
             self.destroy()
 
     def back_to_create_checkout_date_button(self):
@@ -1435,7 +1710,8 @@ class GuestCreationWindow(tk.Toplevel):
         if not self.select_rooms_list.get():
             showwarning("Error!", "No Room Selected!")
         else:
-            selected_room = sql_connection.retrieve_a_room(self.select_rooms_list.get())
+            selected_room_index = (self.select_rooms_list.get()).split(" ")
+            selected_room = sql_connection.retrieve_a_room(selected_room_index[0])
             self.rooms_id_variable.set(selected_room[0])
             self.rooms_name_variable.set(selected_room[1])
             self.rooms_type_variable.set(selected_room[2])
@@ -1456,9 +1732,25 @@ class GuestCreationWindow(tk.Toplevel):
         all_rooms = sql_connection.retrieve_rooms_list()
         rooms = []
 
-        for i in all_rooms:
-            if i[-1] == 0 and i[4] == 1:
-                rooms.append(i[1])
+        if self.guest_numbers.get() == 1:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1:
+                    rooms.append((i[1], i[2]))
+
+        elif self.guest_numbers.get() == 2:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1 and i[2] != "Single":
+                    rooms.append((i[1], i[2]))
+
+        elif self.guest_numbers.get() == 3:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1 and i[2] not in ["Single", "Double"]:
+                    rooms.append((i[1], i[2]))
+
+        else:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1 and i[2] not in ["Single", "Double", "Triple"]:
+                    rooms.append((i[1], i[2]))
 
         room_numbers = tuple(rooms)
         self.select_rooms_list['values'] = room_numbers
@@ -1487,12 +1779,26 @@ class GuestCreationWindow(tk.Toplevel):
             return False
 
     def check_phone_number_valid(self):
-        pattern = r'^\+?[1-9]\d{1,14}$'
+        pattern = r'^\+?[0-9]\d{1,14}$'
         if self.phone_number_variable:
             if re.match(pattern, self.phone_number_variable.get()):
                 return True
             else:
                 return False
+        else:
+            return False
+
+    def if_first_frame_entry_is_empty(self):
+        fname = self.firstname_variable.get()
+        lname = self.lastname_variable.get()
+        phone = self.phone_number_variable.get()
+        email = self.email_variable.get()
+        pay = self.payment_method_variable.get()
+        gnumber = self.select_number_of_guest.get()
+        gtype = self.select_type_guest.get()
+
+        if [x for x in (fname, lname, phone, email, pay, gnumber, gtype) if x == ""]:
+            return True
         else:
             return False
 
@@ -2930,9 +3236,9 @@ class EmployeeCreationWindow(tk.Toplevel):
         for employees in retrieved_employees:
             if employees[5] == 4:
                 manager_details = {"id": employees[0],
-                                    "firstname": employees[1],
-                                    "lastname": employees[2]
-                                    }
+                                   "firstname": employees[1],
+                                   "lastname": employees[2]
+                                   }
                 self.managers.append(manager_details)
                 managers_for_list.append(f'{employees[1]} {employees[2]}')
 
@@ -2965,6 +3271,473 @@ class EmployeeCreationWindow(tk.Toplevel):
         for jobs in self.jobs:
             if jobs['job_title'] == job_name:
                 return jobs['id']
+
+
+class EmployeeModificationWindow(tk.Toplevel):
+    def __init__(self, root, selected_employee_id):
+        super().__init__(root)
+
+        self.geometry('500x200')
+        self.minsize(400, 200)
+        self.title("New Employee")
+
+        self.selected_employee_id = tk.IntVar()
+        self.selected_employee_id.set(selected_employee_id)
+
+        # Basic Employee Information Variables
+        self.firstname_variable = tk.StringVar()
+        self.lastname_variable = tk.StringVar()
+        self.email_variable = tk.StringVar()
+        self.phone_number_variable = tk.StringVar()
+        self.job_position_variable = tk.StringVar()
+        self.manager_information_variable = tk.StringVar()
+        self.fullname_variable = tk.StringVar()
+        self.manager_id = tk.IntVar()
+        self.job_id_variable = tk.IntVar()
+        self.current_job_id_var = tk.IntVar()
+
+        self.schedules = []
+        self.managers = []
+        self.jobs = []
+
+        self.assign_schedule_variable = tk.StringVar()
+        self.schedules_combo = ttk.Combobox()
+        self.manager_variable = tk.StringVar()
+        self.manager_combo = ttk.Combobox()
+        self.job_combo = ttk.Combobox
+
+        self.sched_sql = ScheduleTabSQL()
+        self.employee_sql = EmployeeTabSQL()
+
+        self.retrieve_employee_information()
+
+        self.current_frame = ttk.Frame()
+        self.modify_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.grab_set()
+
+    def modify_basic_information_frame(self):
+        """First Frame, entry fields for simple information"""
+        modify_employee_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        modify_employee_frame.columnconfigure((0, 1), weight=1, uniform='a')
+        modify_employee_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+
+        ttk.Label(modify_employee_frame, text="Employee ID:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(modify_employee_frame, text="* First Name:").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(modify_employee_frame, text="* Last Name:").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(modify_employee_frame, text="* Email:").grid(row=3, column=0, sticky='nsew')
+        ttk.Label(modify_employee_frame, text="* Phone Number:").grid(row=4, column=0, sticky='nsew')
+        ttk.Label(modify_employee_frame, text="* Job:").grid(row=5, column=0, sticky='nsew')
+
+        # Entries
+        ttk.Label(
+            modify_employee_frame,
+            textvariable=self.selected_employee_id
+        ).grid(row=0, column=1, sticky='ew')
+
+        ttk.Entry(
+            modify_employee_frame,
+            textvariable=self.firstname_variable
+        ).grid(row=1, column=1, sticky='ew')
+
+        ttk.Entry(
+            modify_employee_frame,
+            textvariable=self.lastname_variable
+        ).grid(row=2, column=1, sticky='ew')
+
+        ttk.Entry(
+            modify_employee_frame,
+            textvariable=self.email_variable
+        ).grid(row=3, column=1, sticky='ew')
+
+        ttk.Entry(
+            modify_employee_frame,
+            textvariable=self.phone_number_variable
+        ).grid(row=4, column=1, sticky='ew')
+
+        self.job_combo = ttk.Combobox(
+            modify_employee_frame,
+            textvariable=self.job_position_variable,
+            state='readonly'
+        )
+        self.populate_job_list()
+        self.job_combo.current(self.current_job_id_var.get() - 1)
+        self.job_combo.grid(row=4, column=1, sticky='nsew')
+
+        # Buttons
+        tk.Button(
+            modify_employee_frame,
+            text="Next",
+            command=self.next_to_assign_schedule_button
+        ).grid(row=8, columnspan=2, column=0, sticky='nsew')
+        tk.Button(
+            modify_employee_frame,
+            text="Cancel",
+            command=self.cancel_create_button
+        ).grid(row=8, column=2, sticky='nsew')
+
+        self.current_frame = modify_employee_frame
+        return modify_employee_frame
+
+    def assigns_manager_frame(self):
+        """Second Frame, manager to employee"""
+        reassign_manager_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        reassign_manager_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        reassign_manager_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+
+        ttk.Label(reassign_manager_frame, text="Manager: ").grid(row=0, column=0, sticky='nsew')
+
+        self.manager_combo = ttk.Combobox(reassign_manager_frame,
+                                          textvariable=self.manager_variable,
+                                          state='readonly')
+
+        if self.is_employee_a_manager():
+            self.manager_combo.configure(state='disabled')
+            ttk.Label(reassign_manager_frame,
+                      text="Employee is a manager").grid(row=1, columnspan=2, column=1, sticky='ew')
+        self.manager_combo.grid(row=0, columnspan=2, column=1, sticky='nsew')
+        self.populate_manager_list()
+
+        # Buttons
+        tk.Button(
+            reassign_manager_frame,
+            text="Next",
+            command=self.next_to_confirm_info_button
+        ).grid(row=8, columnspan=2, column=0, sticky='nsew')
+        tk.Button(
+            reassign_manager_frame,
+            text="Cancel",
+            command=self.cancel_create_button
+        ).grid(row=8, column=2, sticky='nsew')
+
+        self.current_frame = reassign_manager_frame
+        return reassign_manager_frame
+
+    def confirm_employee_information_frame(self):
+        """Third Frame, visualize whether the information entered are correct"""
+        confirm_information_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        confirm_information_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        confirm_information_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+
+        ttk.Label(confirm_information_frame, text="Name:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(confirm_information_frame, text="Email:").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(confirm_information_frame, text="Phone Number:").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(confirm_information_frame, text="Job:").grid(row=3, column=0, sticky='nsew')
+        ttk.Label(confirm_information_frame, text="Manager:").grid(row=4, column=0, sticky='nsew')
+
+        ttk.Label(confirm_information_frame,
+                  textvariable=self.fullname_variable
+                  ).grid(row=0, column=1, sticky='nsew')
+        ttk.Label(confirm_information_frame,
+                  textvariable=self.email_variable
+                  ).grid(row=1, column=1, sticky='nsew')
+        ttk.Label(confirm_information_frame,
+                  textvariable=self.phone_number_variable
+                  ).grid(row=2, column=1, sticky='nsew')
+        ttk.Label(confirm_information_frame,
+                  textvariable=self.job_position_variable
+                  ).grid(row=3, column=1, sticky='nsew')
+        ttk.Label(confirm_information_frame,
+                  textvariable=self.manager_information_variable
+                  ).grid(row=4, column=1, sticky='nsew')
+
+        # Buttons
+        tk.Button(
+            confirm_information_frame,
+            text="Confirm",
+            command=self.confirm_info_button
+        ).grid(row=6, columnspan=2, column=0, sticky='nsew')
+        tk.Button(
+            confirm_information_frame,
+            text="Cancel",
+            command=self.cancel_create_button
+        ).grid(row=6, column=3, sticky='nsew')
+
+        self.current_frame = confirm_information_frame
+        return confirm_information_frame
+
+    # Employees
+    ##########################################################
+    # Button Functions
+
+    def next_to_assign_schedule_button(self):
+        """First Frame 'Next' Button"""
+        a = self.firstname_variable.get()
+        b = self.lastname_variable.get()
+        c = self.email_variable.get()
+        d = self.phone_number_variable.get()
+        e = self.job_position_variable.get()
+
+        if [x for x in (a, b, c, d, e) if x == ""]:
+            showwarning(title="Error!", message="Please fill all the entries!")
+        else:
+            self.current_frame.pack_forget()
+            self.assigns_manager_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def next_to_confirm_info_button(self):
+        """Second Frame 'Next' Button"""
+        self.fullname_variable.set(f'{self.firstname_variable.get()} {self.lastname_variable.get()}')
+        if not self.is_employee_a_manager():
+            if not self.manager_variable.get():
+                showwarning(title="Error!", message="Please select a manager!")
+            else:
+                # Gets the manager name and detail
+                self.manager_id.set(self.get_employee_id_from_dictionary(self.manager_combo.current()))
+                manager_id = self.manager_id.get()
+                manager_details = self.get_employee_from_id(manager_id)
+                manager_name = f'{manager_details["firstname"]} {manager_details["lastname"]}'
+                self.manager_information_variable.set(manager_name)
+                self.current_frame.pack_forget()
+                self.confirm_employee_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        else:
+            self.current_frame.pack_forget()
+            self.confirm_employee_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def confirm_info_button(self):
+        """Fourth Frame 'Submit' Button"""
+        self.job_id_variable.set(self.get_job_id())
+        confirm = askyesno(title="Confirm Guest?", message="Confirm update?")
+        if confirm:
+            self.employee_sql.update_an_employee(self.firstname_variable.get(),
+                                                 self.lastname_variable.get(),
+                                                 self.email_variable.get(),
+                                                 self.phone_number_variable.get(),
+                                                 self.job_id_variable.get(),
+                                                 self.manager_id.get(),
+                                                 self.selected_employee_id.get()
+                                                 )
+            if self.is_employee_a_manager():
+                self.employee_sql.update_manager_id_if_updated(self.selected_employee_id.get())
+            self.destroy()
+
+    def cancel_create_button(self):
+        """Button to cancel employee creation window"""
+        self.destroy()
+
+    # Button Functions
+    ##########################################################
+    # Logics
+
+    def is_employee_a_manager(self):
+        """If job chosen is manager, return True"""
+        if self.get_job_id() == 4:
+            return True
+        else:
+            return False
+
+    def retrieve_employee_information(self):
+        retrieved_employee = self.employee_sql.retrieve_a_specific_employee(self.selected_employee_id.get())
+
+        self.firstname_variable.set(retrieved_employee[1])
+        self.lastname_variable.set(retrieved_employee[2])
+        self.email_variable.set(retrieved_employee[3])
+        self.phone_number_variable.set(retrieved_employee[4])
+        self.current_job_id_var.set(retrieved_employee[5])
+
+    def populate_manager_list(self):
+        """Fills up list for Manager"""
+        retrieved_employees = self.employee_sql.retrieve_all_employees()
+        managers_for_list = []
+
+        for employees in retrieved_employees:
+            if employees[5] == 4:
+                if employees[0] is not self.selected_employee_id.get():
+                    manager_details = {"id": employees[0],
+                                       "firstname": employees[1],
+                                       "lastname": employees[2]
+                                       }
+                    self.managers.append(manager_details)
+                    managers_for_list.append(f'{employees[1]} {employees[2]}')
+
+        self.manager_combo['values'] = managers_for_list
+
+    def populate_job_list(self):
+        retrieved_jobs = self.employee_sql.retrieve_jobs()
+        jobs_for_list = []
+
+        for jobs in retrieved_jobs:
+            job_details = {"id": jobs[0], "job_title": jobs[1], "job_department": jobs[2]}
+            self.jobs.append(job_details)
+            jobs_for_list.append(jobs[1])
+
+        self.job_combo['values'] = jobs_for_list
+
+    def get_employee_id_from_dictionary(self, index):
+        if index >= 0:
+            selected_manager = self.managers[index]
+            manager_id = selected_manager['id']
+            return manager_id
+
+    def get_employee_from_id(self, id_index):
+        for employee in self.managers:
+            if employee['id'] == id_index:
+                return employee
+
+    def get_job_id(self):
+        job_name = self.job_combo.get()
+        for jobs in self.jobs:
+            if jobs['job_title'] == job_name:
+                return jobs['id']
+
+
+class JobsCreationWindow(tk.Toplevel):
+    def __init__(self, root):
+        super().__init__(root)
+
+        self.geometry('500x200')
+        self.minsize(400, 200)
+        self.title("New Job")
+
+        self.jobs_title_variable = tk.StringVar()
+        self.jobs_depart_variable = tk.StringVar()
+
+        self.jobs_sql = JobsTabSQL()
+
+        self.current_frame = ttk.Frame()
+        self.create_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+        self.grab_set()
+
+    def create_basic_information_frame(self):
+        new_job_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        new_job_frame.columnconfigure((0, 1), weight=1, uniform='a')
+        new_job_frame.rowconfigure((0, 1, 2, 3, 4), weight=1, uniform='a')
+
+        ttk.Label(new_job_frame, text="Jobs Title").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(new_job_frame, text="Jobs Department").grid(row=1, column=0, sticky='nsew')
+
+        ttk.Entry(new_job_frame, textvariable=self.jobs_title_variable).grid(row=0, column=1, sticky='ew')
+        ttk.Entry(new_job_frame, textvariable=self.jobs_depart_variable).grid(row=1, column=1, sticky='ew')
+
+        tk.Button(new_job_frame, text="Confirm", command=self.confirm_job_button).grid(row=4, column=0, sticky='ew')
+        tk.Button(new_job_frame, text="Cancel", command=self.cancel_button).grid(row=4, column=1, sticky='ew')
+
+        return new_job_frame
+
+    # Frames
+    ##########################################################
+    # Button Functions
+
+    def confirm_job_button(self):
+        a = self.jobs_title_variable.get()
+        b = self.jobs_depart_variable.get()
+        if [x for x in (a, b) if x == ""]:
+            showwarning(title="Error!", message="Please fill in the entries!")
+        else:
+            confirm_create = askyesno(title="Create job?", message="You are about to create a job.\nConfirm?")
+            if confirm_create:
+                if self.jobs_sql.create_a_job(self.jobs_title_variable.get(),
+                                              self.jobs_depart_variable.get()):
+                    showinfo(title="Task Successful!", message="Job created successfully!")
+                    self.destroy()
+                else:
+                    showerror(title="Task Unsuccessful!", message="Something went wrong!")
+
+    def cancel_button(self):
+        self.destroy()
+
+
+class AssignEmployeeToBill(tk.Toplevel):
+    def __init__(self, root, bill_id_index):
+        super().__init__(root)
+
+        self.geometry('500x200')
+        self.minsize(400, 200)
+        self.title("New Job")
+
+        self.bills_id_variable = tk.IntVar()
+        self.employee_id_variable = tk.IntVar()
+        self.employees = []
+        self.employee_combo = ttk.Combobox()
+        self.employee_combo_variable = tk.StringVar()
+
+        self.bills_id_variable.set(bill_id_index)
+        self.bills_sql = BillTabSQL()
+        self.employee_sql = EmployeeTabSQL
+
+        self.current_frame = ttk.Frame()
+        self.assign_employee_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        self.grab_set()
+
+    def assign_employee_frame(self):
+        emp_combo_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        emp_combo_frame.columnconfigure((0, 1, 2), weight=1, uniform='a')
+        emp_combo_frame.rowconfigure((0, 1, 2, 3), weight=1, uniform='a')
+
+        ttk.Label(emp_combo_frame, text="Bill ID:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(emp_combo_frame, text="Employee:").grid(row=1, column=0, sticky='nsew')
+
+        tk.Entry(
+            emp_combo_frame,
+            textvariable=self.bills_id_variable,
+            state='readonly'
+        ).grid(row=0, column=1, sticky='ew')
+
+        self.employee_combo = ttk.Combobox(
+            emp_combo_frame,
+            textvariable=self.employee_combo_variable,
+            state='readonly'
+        )
+
+        self.employee_combo.grid(row=1, columnspan=2, column=1, sticky='ew')
+
+        tk.Button(
+            emp_combo_frame,
+            text="Confirm",
+            command=self.bills_confirm_button).grid(row=3, columnspan=2, column=0, sticky='ew')
+        tk.Button(
+            emp_combo_frame,
+            text="Cancel",
+            command=self.bills_cancel_button).grid(row=3, column=2, sticky='ew')
+
+        self.populate_employee_combo()
+
+        return emp_combo_frame
+
+    # Frames
+    ##########################################################
+    # Button Functions
+
+    def bills_confirm_button(self):
+        self.retrieve_employee_id_from_selected_combo()
+        confirm_assign = askyesno(title="Employee Assignment?",
+                                  message=f"You will assign an employee to bill ID: {self.bills_id_variable.get()}\n"
+                                          f"Confirm?")
+        if confirm_assign:
+            self.bills_sql.update_bill_record_employee(self.bills_id_variable.get(),
+                                                       self.employee_id_variable.get()
+                                                       )
+            self.destroy()
+
+    def bills_cancel_button(self):
+        self.destroy()
+
+    # Button Functions
+    ##########################################################
+    # Logic
+
+    def populate_employee_combo(self):
+        retrieved_employees = self.employee_sql.retrieve_employees_to_populate_list(self)
+        employees_for_list = []
+        for employees in retrieved_employees:
+            employees_details = {"id": employees[0],
+                                 "fullname": employees[1],
+                                 "job_title": employees[2]
+                                 }
+            self.employees.append(employees_details)
+            employees_for_list.append(f'{employees[1]}: {employees[2]}')
+
+        self.employee_combo['values'] = employees_for_list
+
+    def retrieve_employee_id_from_selected_combo(self):
+        selected_employee = (self.employee_combo.get()).split(":")
+        selected_emp_name = selected_employee[0]
+
+        for item in self.employees:
+            if item['fullname'] == selected_emp_name:
+                self.employee_id_variable.set(item['id'])
+
+        return selected_emp_name
 
 
 App()

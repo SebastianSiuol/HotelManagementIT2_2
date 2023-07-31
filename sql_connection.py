@@ -218,26 +218,6 @@ def retrieve_an_employee(id_index):
     return the_employee
 
 
-def retrieve_manager(manager_id):
-    """SQL Query for retrieving the manager of an employee"""
-    conn = sqlite3.connect('database/hotelDB.db')
-    c = conn.cursor()
-    the_manager = None
-
-    try:
-        c.execute("""SELECT first_name,last_name FROM EMPLOYEE WHERE employee_id = ?""", (manager_id,))
-        the_manager = c.fetchone()
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-        conn.close()
-
-    return the_manager
-
-
 def retrieve_rooms_list():
     """SQL Query for retrieving all the rooms """
     conn = sqlite3.connect('database/hotelDB.db')
@@ -280,124 +260,7 @@ def retrieve_a_room(room_index):
     return the_room_result
 
 
-def create_a_guest(first_name,
-                   last_name,
-                   email,
-                   phone_number,
-                   payment_info,
-                   check_in,
-                   check_out,
-                   total_price,
-                   room_id):
-    """
-    SQL Query for creating a guest,
-    having their bill created,
-    room assigned, and visit established
-    """
-    # Establish Connection and Cursor
-    conn = sqlite3.connect('database/hotelDB.db')
-    c = conn.cursor()
 
-    # Variables to be used
-    guest_id = None
-    billing_id = None
-
-    # Creates a guest in the table
-    try:
-        create_a_guest_query = """INSERT INTO 
-        Guest(first_name, last_name, email, phone_number, payment_info, is_deleted) VALUES (?,?,?,?,?,?)"""
-        c.execute(create_a_guest_query, (first_name, last_name, email, phone_number, payment_info, 0))
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-
-    # Re-establish Cursor
-    c = conn.cursor()
-
-    # Gets the latest guest record's ID
-    try:
-        get_latest_guest_id_query = """SELECT guest_id FROM Guest ORDER BY rowid DESC LIMIT 1"""
-        c.execute(get_latest_guest_id_query)
-        guest_id = c.fetchone()[0]
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-
-    # Re-establish Cursor
-    c = conn.cursor()
-
-    # Creates billing record according to guest's room choice and night.
-    try:
-        create_billing_query = """INSERT INTO 
-            Billing(total_charge, payment_info, availability) 
-            VALUES (?, ?, ?)"""
-        c.execute(create_billing_query, (total_price, payment_info, 1))
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-
-    # Re-establish Cursor
-    c = conn.cursor()
-
-    # Gets the latest billing record's ID
-    try:
-        get_latest_billing_id_query = "SELECT billing_id FROM Billing ORDER BY rowid DESC LIMIT 1"
-        c.execute(get_latest_billing_id_query)
-        billing_id = c.fetchone()[0]
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-
-    # Re-establish Cursor
-    c = conn.cursor()
-
-    # Creates the visit record.
-    try:
-        create_visit_query = """INSERT INTO 
-        Visit(visit_type, number_of_guest, check_in_date, check_out_date, guest_id, room_id, billing_id) 
-        VALUES(?,?,?,?,?,?,?)"""
-        c.execute(create_visit_query, ('walk_in', 3, check_in, check_out, guest_id, room_id, billing_id))
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-
-    # Re-establish Cursor
-    c = conn.cursor()
-
-    # Creates the visit record.
-    try:
-        modify_rooms_availability = """
-        UPDATE Room
-        SET Availability = 0
-        WHERE room_id = ?
-        """
-        c.execute(modify_rooms_availability, (room_id,))
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-        conn.close()
 
 
 def soft_delete_guest(guest_id):
@@ -541,29 +404,6 @@ def retrieve_a_bill_and_guest(bill_id_index):
 
     return a_bills
 
-
-def pay_bills(bill_id_index):
-    """SQL Query for paying a specific bill"""
-    conn = sqlite3.connect('database/hotelDB.db')
-    c = conn.cursor()
-
-    try:
-        pay_a_bill_query = """
-            UPDATE Billing
-            SET availability = 0
-            WHERE billing_id = ?
-            """
-        c.execute(pay_a_bill_query, (bill_id_index,))
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print("Something went wrong! Error: ", e)
-
-    finally:
-        c.close()
-        conn.close()
-
-
 def get_details_to_modify(guest_id_index):
     """SQL Query for the guest modify feature"""
     conn = sqlite3.connect('database/hotelDB.db')
@@ -611,6 +451,161 @@ def get_details_to_modify(guest_id_index):
         conn.close()
 
     return to_modify_details
+
+
+class CreateAGuest:
+    def __init__(self):
+        self.conn = None
+
+    def create_a_guest(self, first_name, last_name, email, phone_number, payment_info):
+        """First Step of Creating A Guest"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            create_a_guest_query = """
+                INSERT INTO 
+                Guest(first_name, last_name, email, phone_number, payment_info, is_deleted) 
+                VALUES (?,?,?,?,?,?)
+                """
+            c.execute(create_a_guest_query, (first_name, last_name, email, phone_number, payment_info, 0))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def get_latest_guest_id(self):
+        """Second Step of Creating A Guest, Returns the Guest ID"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        guest_id = []
+        try:
+            get_latest_guest_id_query = """SELECT guest_id FROM Guest ORDER BY rowid DESC LIMIT 1"""
+            c.execute(get_latest_guest_id_query)
+            guest_id = c.fetchall()[0]
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+            return guest_id[0]
+
+    def creates_billing_record(self, total_price, payment_info):
+        """Third Step of Creating A Guest, Creates New Billing Record and returns its ID"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        latest_billing_id = []
+        try:
+            create_billing_query = """
+                INSERT INTO 
+                Billing(total_charge, payment_info, availability) 
+                VALUES (?, ?, ?)"""
+            c.execute(create_billing_query, (total_price, payment_info, 1))
+            self.conn.commit()
+
+            get_latest_billing_id_query = "SELECT billing_id FROM Billing ORDER BY rowid DESC LIMIT 1"
+            c.execute(get_latest_billing_id_query)
+            latest_billing_id = c.fetchall()[0]
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+            return latest_billing_id[0]
+
+    def creates_visit_record(self, visit_type,
+                             number_of_guest, check_in,
+                             check_out, guest_id,
+                             room_id, billing_id):
+        """Fourth Step of Creating A Guest, Create the visit ID"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        if visit_type == "Walk In":
+            visit_type = 'walk_in'
+        elif visit_type == 'Reservation':
+            visit_type = 'reservation'
+
+        try:
+            create_visit_query = """
+            INSERT INTO 
+            Visit(visit_type, number_of_guest, check_in_date, check_out_date, guest_id, room_id, billing_id) 
+            VALUES(?,?,?,?,?,?,?)"""
+            c.execute(create_visit_query, (visit_type, number_of_guest,
+                                           check_in, check_out,
+                                           guest_id, room_id, billing_id))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def set_room_availability(self, room_id):
+        """Final Step of Creating A Guest, Modify Room Availability"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        try:
+            modify_rooms_availability = """
+            UPDATE Room
+            SET Availability = 0
+            WHERE room_id = ?
+            """
+            c.execute(modify_rooms_availability, (room_id,))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+
+class GuestTabSQL:
+    def __init__(self):
+        self.conn = None
+
+    def retrieve_guest_list_to_populate_table(self):
+        """SQL Query that retrieves guest id, names, and assigned room"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        all_guests = []
+
+        try:
+            retrieve_employee_query = """
+                SELECT 
+                    Guest.Guest_id,
+                    (Guest.first_name||' '|| Guest.last_name) AS full_name,
+                    Room.room_number,
+                    (Visit.check_in_date||' : '|| Visit.check_out_date) AS 'check-in-out-date',
+                    Guest.is_deleted     
+                FROM Guest
+                INNER JOIN Visit
+                ON Guest.guest_id = Visit.guest_id
+                INNER JOIN ROOM
+                ON Room.room_id = Visit.room_id"""
+            c.execute(retrieve_employee_query)
+            all_guests = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return all_guests
 
 
 class ModifyGuestSQL:
@@ -895,7 +890,7 @@ class ScheduleTabSQL:
                 INSERT INTO Schedule(start_date, end_date, availability)
                 VALUES(?, ?, 1)
                 """
-            c.execute(insert_a_schedules_query, (start_date,end_date,))
+            c.execute(insert_a_schedules_query, (start_date, end_date,))
             self.conn.commit()
 
         except sqlite3 as e:
@@ -1034,5 +1029,360 @@ class EmployeeTabSQL:
 
         return all_jobs
 
+    def retrieve_employees_to_populate_list(self):
+        """SQL Query for retrieving all the employee with jobs"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        all_employees = []
+
+        try:
+            retrieve_employee_query = """
+            SELECT 
+                Employee.employee_id,
+                (Employee.first_name||' '|| Employee.last_name) AS full_name,
+                Jobs.job_title,
+                Employee.is_deleted     
+            FROM Employee
+            INNER JOIN Jobs 
+            ON Employee.job_id = Jobs.job_id"""
+            c.execute(retrieve_employee_query)
+            all_employees = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return all_employees
+
+    def retrieve_a_specific_employee(self, employee_id_index):
+        """SQL Query for retrieving an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        an_employees = []
+
+        try:
+            retrieve_an_employee_query = """
+                    SELECT 
+                        *
+                    From Employee
+                    WHERE employee_id = ?"""
+            c.execute(retrieve_an_employee_query, (employee_id_index,))
+            an_employees = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return an_employees[0]
+
+    def update_an_employee(self, first_name, last_name, email, phone_number, job_id, manager_id, employee_id):
+        """SQL Query for creating an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            create_an_employee_query = """
+                    UPDATE EMPLOYEE
+                    SET first_name = ?,
+                        last_name = ?,
+                        email = ?, 
+                        phone_number = ?,
+                        job_id = ?,
+                        manager_id = ?,
+                        is_deleted = ?
+                    WHERE employee_id = ?"""
+            c.execute(create_an_employee_query, (first_name,
+                                                 last_name,
+                                                 email,
+                                                 phone_number,
+                                                 job_id,
+                                                 manager_id,
+                                                 0,
+                                                 employee_id,))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def retrieve_a_manager(self, manager_id):
+        """SQL Query for retrieving the manager of an employee"""
+
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        the_manager = []
+
+        try:
+            retrieve_manager_name_query = """
+                        SELECT (Employee.first_name||' '|| Employee.last_name) AS full_name
+                        FROM Employee
+                        WHERE employee_id = ?
+                        """
+            c.execute(retrieve_manager_name_query, (manager_id,))
+            the_manager = c.fetchall()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+            return the_manager[0]
+
+    def update_manager_id_if_updated(self, employee_id):
+        """SQL Query for setting manager ID to null if updated employee is now a manager"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            create_an_employee_query = """
+                            UPDATE EMPLOYEE
+                            SET manager_id = ?
+                            WHERE employee_id = ?"""
+            c.execute(create_an_employee_query, (None,
+                                                 employee_id,))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def soft_delete_an_employee(self, employee_id):
+        """SQL Query for soft deleting an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            soft_delete_an_employee_query = """
+                                    UPDATE EMPLOYEE
+                                    SET is_deleted = ?,
+                                        manager_id = ?
+                                    WHERE employee_id = ?"""
+            c.execute(soft_delete_an_employee_query, (1, None, employee_id,))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def check_if_employee_still_manages(self, manager_id):
+        """SQL Query for soft deleting an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        count = 0
+
+        try:
+            checks_if_employee_manages_query = """
+                SELECT COUNT(*) AS Count
+                FROM Employee
+                WHERE manager_id = ?
+                """
+            c.execute(checks_if_employee_manages_query, (manager_id,))
+            count = c.fetchall()[0]
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+            if count[0] == 0:
+                return False
+            else:
+                return True
 
 
+class JobsTabSQL:
+    def __init__(self):
+        self.conn = None
+
+    def retrieve_all_jobs(self):
+        """SQL Query for retrieving all the jobs"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        all_jobs = []
+
+        try:
+            retrieve_employee_query = "SELECT * FROM Jobs"
+            c.execute(retrieve_employee_query)
+            all_jobs = c.fetchall()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return all_jobs
+
+    def create_a_job(self, job_title, job_department):
+        """SQL Query for create a Job"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        flag = True
+
+        try:
+            insert_a_job_query = """
+                INSERT INTO Jobs(job_title, job_department)
+                VALUES(?, ?)
+                """
+            c.execute(insert_a_job_query, (job_title, job_department))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+            flag = False
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return flag
+
+    def check_if_job_is_referenced(self, job_id):
+        """SQL Query for to find if job is used"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        bool_flag = True
+
+        try:
+            check_job_query = """
+                SELECT COUNT(*) AS count_references
+                FROM Employee
+                WHERE job_id = ?
+                        """
+            c.execute(check_job_query, (job_id,))
+            job_count = c.fetchall()[0]
+
+            if job_count[0] == 0:
+                bool_flag = False
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+            bool_flag = False
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return bool_flag
+
+    def hard_delete_job(self,job_id):
+        """SQL Query for to permanently delete a job"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        bool_flag = True
+
+        try:
+            hard_delete_job = """
+                DELETE FROM Jobs
+                WHERE job_id = ?
+                """
+            c.execute(hard_delete_job, (job_id,))
+
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+            bool_flag = False
+
+        finally:
+            c.close()
+            self.conn.close()
+
+        return bool_flag
+
+
+class BillTabSQL:
+    def __init__(self):
+        self.conn = None
+
+    def update_bill_record_employee(self, billing_id, employee_id):
+        """SQL Query for assigning an employee to a bill"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            update_bill_employee_query = """
+                    UPDATE Billing
+                    Set employee_id = ?
+                    WHERE billing_id = ?"""
+            c.execute(update_bill_employee_query, (employee_id, billing_id))
+            self.conn.commit()
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def pay_bills(self, bill_id_index):
+        """SQL Query for paying a specific bill"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            pay_a_bill_query = """
+                UPDATE Billing
+                SET availability = 0
+                WHERE billing_id = ?
+                """
+            c.execute(pay_a_bill_query, (bill_id_index,))
+            self.conn.commit()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+    def does_bill_have_employee(self,billing_id):
+        """SQL Query for checking if bill has an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        bool_flag = True
+
+        try:
+            check_if_bill_employee_query = """
+                SELECT employee_id
+                FROM Billing
+                WHERE billing_id = ?"""
+            c.execute(check_if_bill_employee_query, (billing_id,))
+
+            does_it_have_employee = c.fetchall()[0]
+
+            if does_it_have_employee[0] is None:
+                bool_flag = False
+
+        except sqlite3 as e:
+            print("Something went wrong! Error: ", e)
+            bool_flag = False
+
+        finally:
+            c.close()
+            self.conn.close()
+
+            return bool_flag
