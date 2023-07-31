@@ -260,9 +260,6 @@ def retrieve_a_room(room_index):
     return the_room_result
 
 
-
-
-
 def soft_delete_guest(guest_id):
     """SQL Query for soft deleting a guest"""
     conn = sqlite3.connect('database/hotelDB.db')
@@ -403,6 +400,7 @@ def retrieve_a_bill_and_guest(bill_id_index):
         conn.close()
 
     return a_bills
+
 
 def get_details_to_modify(guest_id_index):
     """SQL Query for the guest modify feature"""

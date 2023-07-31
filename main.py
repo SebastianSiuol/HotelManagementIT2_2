@@ -98,6 +98,9 @@ class GuestTab(ttk.Frame):
 
         self.guests_treeview.pack(expand=True, fill='both')
         self.populate_guests_list()
+
+        self.guests_treeview.bind('<ButtonRelease-1>', self.on_table_click_event)
+
         return guests_table_frame
 
     def guests_widgets(self):
@@ -269,6 +272,9 @@ class GuestTab(ttk.Frame):
         for item in self.guests_treeview.get_children():
             self.guests_treeview.delete(item)
         self.populate_guests_list()
+
+    def on_table_click_event(self, event):
+        self.open_guest_button()
 
     # Button Functions
     ##########################################################
@@ -2286,6 +2292,10 @@ class GuestModifyWindow(tk.Toplevel):
         self.current_frame = modify_confirm_frame
         return modify_confirm_frame
 
+    # Frames
+    ##########################################################
+    # Button Functions
+
     # Buttons Functions Below
     def next_to_rooms_information_button(self):
         """First Frame 'Next' Button"""
@@ -2348,8 +2358,7 @@ class GuestModifyWindow(tk.Toplevel):
             self.destroy()
         elif confirm_modify is None:
             self.destroy()
-        else:
-            pass
+
 
     def back_to_check_out_date_information_button(self):
         """Fourth Frame 'Back' Button"""
@@ -2359,6 +2368,10 @@ class GuestModifyWindow(tk.Toplevel):
     def cancel_modify_button(self):
         self.grab_release()
         self.destroy()
+
+    # Button Functions
+    ##########################################################
+    # Logics/Processes
 
     def populate_room_listbox(self):
         all_rooms = sql_connection.retrieve_rooms_list()
