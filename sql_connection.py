@@ -9,23 +9,26 @@ import sqlite3
 # c.close()
 # conn.close()
 
+class DatabaseInitialization:
+    def __init__(self):
+        self.conn = None
 
-def initialize_database():
-    """Initializes the database and creates table if no tables exists"""
-    conn = sqlite3.connect('database/hotelDB.db')
-    c = conn.cursor()
+    def initialize_database(self):
+        """Initializes the database and creates table if no tables exists"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
 
-    create_guest_table = """CREATE TABLE IF NOT EXISTS Guest (
+        create_guest_table = """CREATE TABLE IF NOT EXISTS Guest (
             [guest_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
             [first_name] [varchar](50) NOT NULL,
             [last_name] [varchar](50) NOT NULL,
-            [email] [varchar](62) NOT NULL,
-            [phone_number] [varchar](15) NULL,
-            [payment_info] [varchar](50) NOT NULL,
+            [email] [varchar](50) NOT NULL,
+            [phone_number] [varchar](15) NOT NULL,
+            [payment_info] [varchar](30) NOT NULL,
             [is_deleted] [bit] NOT NULL
             )"""
 
-    create_visit_table = """CREATE TABLE IF NOT EXISTS Visit (
+        create_visit_table = """CREATE TABLE IF NOT EXISTS Visit (
             [visit_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
             [visit_type] [varchar] CHECK(visit_type IN ('walk_in', 'reservation')) NOT NULL,
             [number_of_guest] [integer] NOT NULL,
@@ -39,65 +42,103 @@ def initialize_database():
                 FOREIGN KEY (billing_id) REFERENCES [Billing]([billing_id])
             )"""
 
-    create_room_table = """CREATE TABLE IF NOT EXISTS Room (
-        [room_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
-        [room_number] [varchar](15) NOT NULL,
-        [room_type] [varchar](20) NOT NULL,
-        [price] [decimal] NOT NULL,
-        [availability] [bit] NOT NULL,
-        [employee_id] int NULL,
-        [is_deleted] [bit] NOT NULL,
+        create_room_table = """CREATE TABLE IF NOT EXISTS Room (
+            [room_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
+            [room_number] [varchar](15) NOT NULL,
+            [room_type] [varchar] CHECK(room_type IN ('Single', 'Double', 'Triple', 'Family', 'Suite')) NOT NULL,
+            [price] [decimal] NOT NULL,
+            [availability] [bit] NOT NULL,
+            [employee_id] int UNIQUE NULL,
+            [is_deleted] [bit] NOT NULL,
             FOREIGN KEY (employee_id) REFERENCES [Employee]([employee_id])
-        )"""
+            )"""
 
-    create_employee_table = """CREATE TABLE IF NOT EXISTS Employee (
+        create_employee_table = """CREATE TABLE IF NOT EXISTS Employee (
             [employee_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
             [first_name] [varchar](50) NOT NULL,
             [last_name] [varchar](50) NOT NULL,
             [email] [nvarchar](62) NOT NULL,
             [phone_number] [varchar](15) NOT NULL,
-            [job_position] [varchar](20) NOT NULL,
+            [job_id] [int] NOT NULL,
             [manager_id] int NULL,
             [is_deleted] [bit] NOT NULL,
                 FOREIGN KEY (manager_id) REFERENCES [Employee]([employee_id])
+                FOREIGN KEY (job_id) REFERENCES [Jobs]([job_id])
         )"""
 
-    create_assigned_schedule_table = """CREATE TABLE IF NOT EXISTS AssignedSchedule (
+        create_assigned_schedule_table = """CREATE TABLE IF NOT EXISTS AssignedSchedule (
             [employee_id] [integer] NULL,
             [schedule_id] [integer] NULL,
-            [status] [varchar](20) NOT NULL,
+            [status] [varchar](20) CHECK(status IN ('Active','Completed','Leave')) NOT NULL,
+			UNIQUE (employee_id, schedule_id),
                 FOREIGN KEY (employee_id) REFERENCES [Employee]([employee_id])
                 FOREIGN KEY (schedule_id) REFERENCES [Schedule]([schedule_id])
         )"""
 
-    create_schedule_table = """CREATE TABLE IF NOT EXISTS Schedule (
+        create_schedule_table = """CREATE TABLE IF NOT EXISTS Schedule (
             [schedule_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
             [start_date] [date] NOT NULL,
             [end_date] [date] NOT NULL,
             [availability] [bit] NOT NULL
         )"""
 
-    create_billing_table = """CREATE TABLE IF NOT EXISTS Billing (
+        create_billing_table = """CREATE TABLE IF NOT EXISTS Billing (
             [billing_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
             [total_charge] [decimal] NOT NULL,
-            [payment_info] [varchar](50) NOT NULL,
+            [payment_method] [varchar](50) NOT NULL,
             [availability] [bit] NOT NULL,
-            [employee_id] int NULL,
+            [employee_id] [integer] NULL,
                 FOREIGN KEY (employee_id) REFERENCES [Employee]([employee_id])
         )"""
 
-    c.execute(create_billing_table)
-    c.execute(create_schedule_table)
-    c.execute(create_assigned_schedule_table)
-    c.execute(create_employee_table)
-    c.execute(create_room_table)
-    c.execute(create_visit_table)
-    c.execute(create_guest_table)
+        c.execute(create_billing_table)
+        self.conn.commit()
+        c.execute(create_schedule_table)
+        self.conn.commit()
+        c.execute(create_assigned_schedule_table)
+        self.conn.commit()
+        c.execute(create_employee_table)
+        self.conn.commit()
+        c.execute(create_room_table)
+        self.conn.commit()
+        c.execute(create_visit_table)
+        self.conn.commit()
+        c.execute(create_guest_table)
+        self.conn.commit()
 
-    conn.commit()
+        c.close()
+        self.conn.close()
 
-    c.close()
-    conn.close()
+    def initialize_default_jobs(self):
+        """SQL Query to initialize default jobs"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+
+        try:
+            c.execute("SELECT * FROM Jobs")
+
+        except sqlite3.OperationalError:
+
+            create_jobs_table = """CREATE TABLE IF NOT EXISTS Jobs (
+                        [job_id] [integer] NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        [job_title] [varchar][50] NOT NULL,
+                        [job_department] [text][50] NOT NULL
+                    )"""
+            c.execute(create_jobs_table)
+            self.conn.commit()
+            create_jobs_query = """INSERT OR IGNORE INTO Jobs(job_title, job_department)
+                        VALUES ('Front Desk Clerk','Front Office'),
+                        ('Housekeeper','Housekeeping'),
+                        ('Maintenance Staff','Maintenance'),
+                        ('Manager','Management'),
+                        ('Security Guard','Security')
+                        """
+            c.execute(create_jobs_query)
+            self.conn.commit()
+
+        finally:
+            c.close()
+            self.conn.close()
 
 
 def retrieve_guest_lists():
@@ -187,7 +228,7 @@ def retrieve_employee_list():
         c.execute(retrieve_employees_query)
         all_employees = c.fetchall()
 
-    except sqlite3 as e:
+    except sqlite3.Error as e:
         print("Something went wrong! Error: ", e)
 
     finally:
@@ -596,7 +637,7 @@ class GuestTabSQL:
             c.execute(retrieve_employee_query)
             all_guests = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -714,7 +755,7 @@ class ModifyGuestSQL:
         try:
             update_billing_query = """
                     UPDATE Billing
-                    SET payment_info = ?, total_charge = ?
+                    SET payment_method = ?, total_charge = ?
                     WHERE billing_id = ?"""
             c.execute(update_billing_query, (payment_info, total_price, billing_id))
             self.conn.commit()
@@ -740,16 +781,16 @@ class RoomTabSQL:
         try:
             retrieve_a_room_query = """
             SELECT 
-                room_id,
-                room_number, 
-                room_type, 
-                price, 
-                    CASE
-                        WHEN availability = 0 THEN 'Unavailable'
-                        WHEN availability = 1 THEN 'Available'
-                        ELSE 'Unknown'
-                    END AS availability,
-                employee_id
+            room_id,
+            room_number, 
+            room_type, 
+            price, 
+            CASE
+            WHEN availability = 0 THEN 'Unavailable'
+            WHEN availability = 1 THEN 'Available'
+            ELSE 'Unknown'
+            END AS availability,
+            employee_id
             FROM Room
             WHERE room_id = ?
             """
@@ -790,6 +831,7 @@ class RoomTabSQL:
         self.conn = sqlite3.connect('database/hotelDB.db')
         c = self.conn.cursor()
 
+        bool_flag = True
         try:
             soft_delete_room_query = """
                         INSERT INTO Room(room_number, room_type, price, availability, employee_id, is_deleted) 
@@ -798,12 +840,14 @@ class RoomTabSQL:
             c.execute(soft_delete_room_query, (room_name, room_type, room_price, 1, employee_id, 0,))
             self.conn.commit()
 
-        except sqlite3.Error as e:
-            print("Something went wrong! Error", e)
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE constraint failed" in str(e):
+                bool_flag = False
 
         finally:
             c.close()
             self.conn.close()
+            return bool_flag
 
     def check_if_room_available(self, room_id):
         """SQL Query for creating a room"""
@@ -834,6 +878,7 @@ class RoomTabSQL:
         self.conn = sqlite3.connect('database/hotelDB.db')
         c = self.conn.cursor()
 
+        bool_flag = True
         try:
             update_room_query = """
                         UPDATE Room
@@ -846,12 +891,14 @@ class RoomTabSQL:
             c.execute(update_room_query, (room_number, room_type, room_price, employee_id, room_id,))
             self.conn.commit()
 
-        except sqlite3.Error as e:
-            print("Something went wrong! Error", e)
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE constraint failed" in str(e):
+                bool_flag = False
 
         finally:
             c.close()
             self.conn.close()
+            return bool_flag
 
 
 class ScheduleTabSQL:
@@ -869,7 +916,7 @@ class ScheduleTabSQL:
             c.execute(retrieve_schedules_query)
             all_schedules = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -891,7 +938,7 @@ class ScheduleTabSQL:
             c.execute(insert_a_schedules_query, (start_date, end_date,))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -911,7 +958,7 @@ class ScheduleTabSQL:
             c.execute(delete_a_schedules_query, (schedule_id,))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -933,7 +980,7 @@ class ScheduleTabSQL:
             c.execute(retrieve_schedules_query, (schedule_id,))
             a_schedule = c.fetchall()[0]
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -956,7 +1003,7 @@ class ScheduleTabSQL:
             c.execute(update_a_schedules_query, (start_date, end_date, schedule_id))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1082,7 +1129,7 @@ class EmployeeTabSQL:
             c.execute(retrieve_employee_query)
             all_employees = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1104,7 +1151,7 @@ class EmployeeTabSQL:
             c.execute(create_an_employee_query, (first_name, last_name, email, phone_number, job_id, manager_id, 0,))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1122,7 +1169,7 @@ class EmployeeTabSQL:
             c.execute(retrieve_jobs_query)
             all_jobs = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1150,7 +1197,7 @@ class EmployeeTabSQL:
             c.execute(retrieve_employee_query)
             all_employees = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1159,6 +1206,38 @@ class EmployeeTabSQL:
 
         return all_employees
 
+    def retrieve_a_specific_employee_for_details(self, employee_id_index):
+        """SQL Query for retrieving an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        an_employees = []
+
+        try:
+            retrieve_an_employee_for_details_query = """
+                    SELECT 
+                    Employee.employee_id,
+                    Employee.first_name,
+                    Employee.last_name,
+                    Employee.email,
+                    Employee.phone_number,
+                    Jobs.job_title,
+                    Employee.manager_id,
+                    Employee.is_deleted
+                    From Employee
+                    INNER JOIN Jobs ON Employee.job_id = Jobs.job_id
+                    WHERE employee_id = ?
+                    """
+            c.execute(retrieve_an_employee_for_details_query, (employee_id_index,))
+            an_employees = c.fetchall()
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+            return an_employees[0]
+
     def retrieve_a_specific_employee(self, employee_id_index):
         """SQL Query for retrieving an employee"""
         self.conn = sqlite3.connect('database/hotelDB.db')
@@ -1166,22 +1245,19 @@ class EmployeeTabSQL:
         an_employees = []
 
         try:
-            retrieve_an_employee_query = """
-                    SELECT 
-                        *
-                    From Employee
-                    WHERE employee_id = ?"""
-            c.execute(retrieve_an_employee_query, (employee_id_index,))
+            retrieve_an_employee_for_details_query = """
+                    SELECT * From Employee WHERE employee_id = ?
+                    """
+            c.execute(retrieve_an_employee_for_details_query, (employee_id_index,))
             an_employees = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
             c.close()
             self.conn.close()
-
-        return an_employees[0]
+            return an_employees[0]
 
     def update_an_employee(self, first_name, last_name, email, phone_number, job_id, manager_id, employee_id):
         """SQL Query for creating an employee"""
@@ -1209,7 +1285,7 @@ class EmployeeTabSQL:
                                                  employee_id,))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1255,7 +1331,7 @@ class EmployeeTabSQL:
                                                  employee_id,))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1276,7 +1352,7 @@ class EmployeeTabSQL:
             c.execute(soft_delete_an_employee_query, (1, None, employee_id,))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1298,7 +1374,7 @@ class EmployeeTabSQL:
             c.execute(checks_if_employee_manages_query, (manager_id,))
             count = c.fetchall()[0]
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1309,6 +1385,34 @@ class EmployeeTabSQL:
                 return False
             else:
                 return True
+
+    def check_if_theres_a_manager(self):
+        """SQL Query for checking if there's a manager"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        count = 0
+
+        try:
+            checks_if_employee_manages_query = """
+            SELECT COUNT(*) FROM Employee
+            WHERE job_id = 4
+            """
+            c.execute(checks_if_employee_manages_query)
+            count = c.fetchall()[0]
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+            if count[0] == 0:
+                return False
+            else:
+                return True
+
+
 
 
 class JobsTabSQL:
@@ -1326,7 +1430,7 @@ class JobsTabSQL:
             c.execute(retrieve_employee_query)
             all_jobs = c.fetchall()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1415,6 +1519,30 @@ class JobsTabSQL:
 
         return bool_flag
 
+    def select_a_specific_job(self, job_id):
+        """SQL Query for to retrieve a specific job"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        retrieved_job = []
+
+        try:
+            retrieve_a_job_query = """
+                        SELECT * FROM Jobs WHERE job_id = ?
+                        """
+            c.execute(retrieve_a_job_query, (job_id,))
+
+            retrieved_job = c.fetchall()[0]
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+
+            return retrieved_job
+
+
 
 class BillTabSQL:
     def __init__(self):
@@ -1433,7 +1561,7 @@ class BillTabSQL:
             c.execute(update_bill_employee_query, (employee_id, billing_id))
             self.conn.commit()
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
 
         finally:
@@ -1479,7 +1607,7 @@ class BillTabSQL:
             if does_it_have_employee[0] is None:
                 bool_flag = False
 
-        except sqlite3 as e:
+        except sqlite3.Error as e:
             print("Something went wrong! Error: ", e)
             bool_flag = False
 

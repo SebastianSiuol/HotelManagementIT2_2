@@ -1,14 +1,11 @@
 import datetime
-import tkinter
-
 import sql_connection
 import re
-import traceback
 import tkinter as tk
 from sql_connection import *
 from tkinter import ttk
 from tkinter.messagebox import *
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 
 
 class App(tk.Tk):
@@ -16,12 +13,16 @@ class App(tk.Tk):
         super().__init__()
 
         icon_path = 'images/windowsicon.ico'
-
+        self.iconbitmap(icon_path)
         self.title('Hotel Management')
         # width x height
         self.geometry('1000x600')
         self.minsize(800, 600)
-        self.iconbitmap(icon_path)
+
+
+        self.database_initialization = DatabaseInitialization()
+        self.database_initialization.initialize_database()
+        self.database_initialization.initialize_default_jobs()
 
         self.tab_menu = HotelTabs(self)
         self.mainloop()
@@ -477,7 +478,7 @@ class RoomTab(ttk.Frame):
             selected_room = self.rooms_treeview.item(highlighted_room)
             selected_room_id = selected_room.get('values')[0]
             retrieved_room = self.room_sql.retrieve_a_specific_room(selected_room_id)
-            if retrieved_room[5] is None:
+            if retrieved_room[5] in ['None', None]:
                 employee_room_manager = "None"
 
             else:
@@ -910,7 +911,7 @@ class EmployeeTab(ttk.Frame):
         tk.Label(employee_details_frame, text='Last Name:').grid(row=2, column=0, sticky='nsew')
         tk.Label(employee_details_frame, text='Email:').grid(row=3, column=0, sticky='nsew')
         tk.Label(employee_details_frame, text='Phone Number:').grid(row=4, column=0, sticky='nsew')
-        tk.Label(employee_details_frame, text='Job Position: ').grid(row=5, column=0, sticky='nsew')
+        tk.Label(employee_details_frame, text='Job ID: ').grid(row=5, column=0, sticky='nsew')
         tk.Label(employee_details_frame, text='Manager: ').grid(row=6, column=0, sticky='nsew')
 
         self.employee_id_entry = tk.Entry(
@@ -976,7 +977,7 @@ class EmployeeTab(ttk.Frame):
             highlighted_employee = self.employee_treeview.focus()
             selected_employee = self.employee_treeview.item(highlighted_employee)
             selected_employee_id = selected_employee.get('values')[0]
-            retrieved_employee = self.employee_sql.retrieve_a_specific_employee(selected_employee_id)
+            retrieved_employee = self.employee_sql.retrieve_a_specific_employee_for_details(selected_employee_id)
 
             self.employee_id_variable.set(retrieved_employee[0])
             self.employee_firstname_variable.set(retrieved_employee[1])
@@ -986,7 +987,7 @@ class EmployeeTab(ttk.Frame):
             self.employee_job_position_variable.set(retrieved_employee[5])
             self.manager_id_variable.set(retrieved_employee[6])
 
-            if retrieved_employee[6] is None:
+            if retrieved_employee[6] in [None,'',0]:
                 self.manager_name_variable.set('No Manager')
             else:
                 manager_name = self.employee_sql.retrieve_a_manager(self.manager_id_variable.get())
@@ -1357,7 +1358,19 @@ class JobsTab(ttk.Frame):
         JobsCreationWindow(self)
 
     def open_jobs_button(self):
-        self.populate_jobs_table()
+        if not self.jobs_treeview.focus():
+            showwarning(title="Error!",
+                        message='No room is selected!')
+        else:
+
+            highlighted_jobs = self.jobs_treeview.focus()
+            selected_jobs = self.jobs_treeview.item(highlighted_jobs)
+            selected_jobs_id = selected_jobs.get('values')[0]
+            retrieve_job = self.jobs_sql.select_a_specific_job(selected_jobs_id)
+
+            self.jobs_id_variable.set(retrieve_job[0])
+            self.jobs_title_variable.set(retrieve_job[1])
+            self.jobs_department_variable.set(retrieve_job[2])
 
     def delete_jobs_button(self):
         if not self.jobs_treeview.focus():
@@ -1372,9 +1385,9 @@ class JobsTab(ttk.Frame):
                                       message=f"You are about to delete Job: {selected_jobs.get('values')[1]}."
                                               f"\nConfirm?")
             if confirm_delete:
-                if selected_jobs_id == 4:
+                if selected_jobs_id in [1, 2, 3,4 ,5]:
                     showerror(title="Error!",
-                              message='The manager job cannot be deleted!')
+                              message='Default jobs cannot be deleted!')
                 else:
                     if self.jobs_sql.check_if_job_is_referenced(selected_jobs_id):
                         showerror(title="Error!",
@@ -1410,7 +1423,8 @@ class JobsTab(ttk.Frame):
 class GuestCreationWindow(tk.Toplevel):
     def __init__(self, root):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
 
@@ -1429,7 +1443,7 @@ class GuestCreationWindow(tk.Toplevel):
         self.rooms_id_variable = tk.IntVar()
         self.rooms_name_variable = tk.StringVar()
         self.rooms_type_variable = tk.StringVar()
-        self.rooms_price_variable = tk.StringVar()
+        self.rooms_price_variable = tk.IntVar()
         self.rooms_total_price_variable = tk.IntVar()
 
         # Check-in/out Variables
@@ -1782,7 +1796,6 @@ class GuestCreationWindow(tk.Toplevel):
         self.current_frame.pack_forget()
         self.create_checkout_date_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
-
     def check_room_button(self):
         if not self.select_rooms_list.get():
             showwarning("Error!", "No Room Selected!")
@@ -1956,6 +1969,8 @@ class GuestCreationWindow(tk.Toplevel):
 class GuestModifyWindow(tk.Toplevel):
     def __init__(self, root, guest_id_modify):
         super().__init__(root)
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
 
         self.geometry('500x200')
         self.minsize(400, 200)
@@ -1963,8 +1978,8 @@ class GuestModifyWindow(tk.Toplevel):
         self.title("Modify Guest")
 
         # Guest ID that is passed to modify
-        self.selected_guest_id = tk.StringVar()
-        self.selected_guest_id.set(str(guest_id_modify))
+        self.selected_guest_id = tk.IntVar()
+        self.selected_guest_id.set(guest_id_modify)
 
         # Retrieved Variables
         self.firstname_variable = tk.StringVar()
@@ -1972,42 +1987,39 @@ class GuestModifyWindow(tk.Toplevel):
         self.email_variable = tk.StringVar()
         self.phone_number_variable = tk.StringVar()
         self.payment_info_variable = tk.StringVar()
-        self.visit_id_variable = tk.StringVar()
+        self.visit_id_variable = tk.IntVar()
         self.visit_type_variable = tk.StringVar()
-        self.visit_number_of_guests_variable = tk.StringVar()
+        self.visit_number_of_guests_variable = tk.IntVar()
         self.check_in_date_variable = tk.StringVar()
         self.check_out_date_variable = tk.StringVar()
         self.current_rooms_id_variable = tk.StringVar()
         self.current_rooms_name_variable = tk.StringVar()
         self.current_rooms_type_variable = tk.StringVar()
-        self.current_rooms_price_variable = tk.StringVar()
-        self.billing_id_variable = tk.StringVar()
+        self.current_rooms_price_variable = tk.IntVar()
+        self.billing_id_variable = tk.IntVar()
 
         # Entry and Derived Variables
         self.guest_name_variable = tk.StringVar()
         self.rooms_list_variable = tk.StringVar()
-        self.rooms_id_variable = tk.StringVar()
+        self.rooms_id_variable = tk.IntVar()
         self.rooms_name_variable = tk.StringVar()
         self.rooms_type_variable = tk.StringVar()
-        self.rooms_price_variable = tk.StringVar()
+        self.rooms_price_variable = tk.IntVar()
         self.rooms_total_price_variable = tk.IntVar()
-        self.new_rooms_id_variable = tk.StringVar()
+        self.new_rooms_id_variable = tk.IntVar()
         self.new_rooms_name_variable = tk.StringVar()
         self.new_rooms_type_variable = tk.StringVar()
-        self.new_rooms_price_variable = tk.StringVar()
+        self.new_rooms_price_variable = tk.IntVar()
         self.assigned_room_variable = tk.StringVar()
         self.new_room_flag = False
 
         # Entry and Derived Variables
-        self.check_in_year_variable = tk.StringVar()
-        self.check_in_month_variable = tk.StringVar()
-        self.check_in_day_variable = tk.StringVar()
-        self.check_out_year_variable = tk.StringVar()
-        self.check_out_month_variable = tk.StringVar()
-        self.check_out_day_variable = tk.StringVar()
+        self.check_in_date_variable = tk.StringVar()
+        self.check_out_date_variable = tk.StringVar()
+        self.num_of_days = tk.IntVar()
 
-        self.select_rooms = None
-        self.current_frame = None
+        self.select_rooms_combobox = ttk.Combobox()
+        self.current_frame = ttk.Frame()
 
         # Retrieves guest information to modify
         self.get_guest_details_to_modify()
@@ -2096,12 +2108,12 @@ class GuestModifyWindow(tk.Toplevel):
         ttk.Label(modify_room_frame, textvariable=self.assigned_room_variable).grid(row=4, column=2, sticky='ew')
 
         # Listbox of Rooms
-        self.select_rooms = ttk.Combobox(
+        self.select_rooms_combobox = ttk.Combobox(
             modify_room_frame,
             textvariable=self.rooms_list_variable,
             state='readonly'
         )
-        self.select_rooms.grid(row=1, columnspan=2, column=1, sticky='nsew')
+        self.select_rooms_combobox.grid(row=1, columnspan=2, column=1, sticky='nsew')
         self.populate_room_listbox()
 
         # Buttons
@@ -2136,64 +2148,65 @@ class GuestModifyWindow(tk.Toplevel):
 
     def modify_checkout_information_frame(self):
         """Third Frame"""
-        modify_checkout_frame = ttk.Frame(self, borderwidth=10, relief='groove')
-        modify_checkout_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
-        modify_checkout_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+        modify_schedule_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        modify_schedule_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        modify_schedule_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
 
-        # Get the check-in/out dates of the guest to modify
-        self.get_check_in_out_date()
+        # Labels with
+        ttk.Label(modify_schedule_frame, text="Check In Date").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, text="Check Out Date").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, text='Number of Days').grid(row=3, column=0, sticky='nsew')
+        ttk.Label(modify_schedule_frame, textvariable=self.num_of_days).grid(row=3, column=1, sticky='nsew')
 
-        # Labels
-        ttk.Label(modify_checkout_frame, text='Check-in Date').grid(row=1, column=0, sticky='nsew')
-        ttk.Label(modify_checkout_frame, text='Check-out Date').grid(row=2, column=0, sticky='nsew')
-        ttk.Label(modify_checkout_frame, text='Year').grid(row=0, column=1, sticky='nsew')
-        ttk.Label(modify_checkout_frame, text='Month').grid(row=0, column=2, sticky='nsew')
-        ttk.Label(modify_checkout_frame, text='Day').grid(row=0, column=3, sticky='nsew')
-
-        # Entries
+        # Check-In Date Entry
         ttk.Entry(
-            modify_checkout_frame,
-            textvariable=self.check_in_year_variable,
-            state='readonly'
-        ).grid(row=1, column=1, sticky='ew')
+            modify_schedule_frame,
+            textvariable=self.check_in_date_variable,
+        ).grid(row=1, column=1, sticky='nsew')
 
+        # Check-Out Date Entry
         ttk.Entry(
-            modify_checkout_frame,
-            textvariable=self.check_in_month_variable,
-            state='readonly'
-        ).grid(row=1, column=2, sticky='ew')
+            modify_schedule_frame,
+            textvariable=self.check_out_date_variable,
+        ).grid(row=2, column=1, sticky='nsew')
 
-        ttk.Entry(
-            modify_checkout_frame,
-            textvariable=self.check_in_day_variable,
-            state='readonly'
-        ).grid(row=1, column=3, sticky='ew')
-
-        ttk.Entry(modify_checkout_frame, textvariable=self.check_out_year_variable).grid(row=2, column=1, sticky='ew')
-        ttk.Entry(modify_checkout_frame, textvariable=self.check_out_month_variable).grid(row=2, column=2, sticky='ew')
-        ttk.Entry(modify_checkout_frame, textvariable=self.check_out_day_variable).grid(row=2, column=3, sticky='ew')
-
-        # Buttons
+        # Today Button
         tk.Button(
-            modify_checkout_frame,
-            text="Next",
+            modify_schedule_frame,
+            text="Today",
+            command=self.today_button
+        ).grid(row=1, column=3, sticky='nsew')
+
+        # Add Button
+        tk.Button(
+            modify_schedule_frame,
+            text="Add",
+            command=self.add_a_day_button
+        ).grid(row=2, column=3, sticky='nsew')
+
+        # Subtract Button
+        tk.Button(
+            modify_schedule_frame,
+            text="Subtract",
+            command=self.subtract_a_day_button
+        ).grid(row=3, column=3, sticky='nsew')
+
+        # Confirm Button
+        tk.Button(
+            modify_schedule_frame,
+            text="Confirm",
             command=self.next_to_confirm_modify_information_button
-        ).grid(row=6, columnspan=2, column=0, sticky='ew')
+        ).grid(row=5, columnspan=2, column=0, sticky='nsew')
 
+        # Cancel Button
         tk.Button(
-            modify_checkout_frame,
-            text="Back",
-            command=self.back_to_rooms_information_button
-        ).grid(row=6, column=2, sticky='ew')
-
-        tk.Button(
-            modify_checkout_frame,
+            modify_schedule_frame,
             text="Cancel",
             command=self.cancel_modify_button
-        ).grid(row=6, column=3, sticky='ew')
+        ).grid(row=5, columnspan=2, column=2, sticky='nsew')
 
-        self.current_frame = modify_checkout_frame
-        return modify_checkout_frame
+        self.current_frame = modify_schedule_frame
+        return modify_schedule_frame
 
     def modify_confirm_information_frame(self):
         """Fourth Frame"""
@@ -2215,17 +2228,6 @@ class GuestModifyWindow(tk.Toplevel):
         ttk.Label(modify_confirm_frame, text="Check-in:").grid(row=5, column=0, sticky='nsew')
         ttk.Label(modify_confirm_frame, text="Check-out:").grid(row=6, column=0, sticky='nsew')
         ttk.Label(modify_confirm_frame, text="Total Price:").grid(row=7, column=0, sticky='nsew')
-
-        self.check_in_date_variable.set(
-            f'{self.check_in_year_variable.get()}-'
-            f'{self.check_in_month_variable.get()}-'
-            f'{self.check_in_day_variable.get()}'
-        )
-        self.check_out_date_variable.set(
-            f'{self.check_out_year_variable.get()}-'
-            f'{self.check_out_month_variable.get()}-'
-            f'{self.check_out_day_variable.get()}'
-        )
 
         self.calculate_total_price()
 
@@ -2359,6 +2361,74 @@ class GuestModifyWindow(tk.Toplevel):
         elif confirm_modify is None:
             self.destroy()
 
+    def today_button(self):
+        """Get date today"""
+        full_datetime_object = datetime.now()
+        yy_mm_dd_datetime_object = full_datetime_object.date()
+        self.check_in_date_variable.set(yy_mm_dd_datetime_object)
+        self.check_out_date_variable.set(yy_mm_dd_datetime_object + timedelta(days=1))
+        self.num_of_days.set("1")
+
+    def add_a_day_button(self):
+        """Adds a day"""
+        if self.is_first_date_bigger_or_equal_than_second():
+            initial_date_str = self.check_in_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.check_out_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to that will be used calculate days
+        check_in_day_str = self.check_in_date_variable.get()
+        check_in_day_object = datetime.strptime(check_in_day_str, '%Y-%m-%d')
+
+        #
+        added_date_object = initial_date_object + timedelta(days=1)
+        self.check_out_date_variable.set(added_date_object.strftime('%Y-%m-%d'))
+        days_object = added_date_object - check_in_day_object
+        self.num_of_days.set(days_object.days)
+
+    def subtract_a_day_button(self):
+        """Subtracts a day"""
+        if self.is_first_date_bigger_or_equal_than_second():
+            initial_date_str = self.check_in_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.check_out_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to calculate days
+        initial_day_str = self.check_in_date_variable.get()
+        initial_day_object = datetime.strptime(initial_day_str, '%Y-%m-%d')
+        today_object = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if initial_date_object > today_object:
+            new_date_object = initial_date_object - timedelta(days=1)
+            self.check_out_date_variable.set(new_date_object.strftime('%Y-%m-%d'))
+            days_object = new_date_object - initial_day_object
+            self.num_of_days.set(days_object.days)
+
+    def check_room_button(self):
+        if not self.select_rooms_combobox.get():
+            showwarning("Error!", "No Room Selected!")
+        else:
+            retrieved_room = sql_connection.retrieve_a_room(self.select_rooms_combobox.get())
+            self.rooms_id_variable.set(retrieved_room[0])
+            self.rooms_name_variable.set(retrieved_room[1])
+            self.rooms_type_variable.set(retrieved_room[2])
+            self.rooms_price_variable.set(retrieved_room[3])
+
+    def assign_room_button(self):
+        if not self.select_rooms_combobox.get():
+            showwarning("Error!", "No Room Selected!")
+        else:
+            retrieved_room = sql_connection.retrieve_a_room(self.select_rooms_combobox.get())
+            self.new_rooms_id_variable.set(retrieved_room[0])
+            self.new_rooms_name_variable.set(retrieved_room[1])
+            self.new_rooms_type_variable.set(retrieved_room[2])
+            self.new_rooms_price_variable.set(retrieved_room[3])
+            self.new_room_flag = True
+            self.assigned_room_variable.set("Assigned!")
 
     def back_to_check_out_date_information_button(self):
         """Fourth Frame 'Back' Button"""
@@ -2377,36 +2447,32 @@ class GuestModifyWindow(tk.Toplevel):
         all_rooms = sql_connection.retrieve_rooms_list()
         rooms = []
 
-        for i in all_rooms:
-            if i[-1] == 0 and i[4] == 1:
-                rooms.append(i[1])
+        if self.visit_number_of_guests_variable.get() == 1:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1:
+                    rooms.append((i[1], i[2]))
+
+        elif self.visit_number_of_guests_variable.get() == 2:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1 and i[2] != "Single":
+                    rooms.append((i[1], i[2]))
+
+        elif self.visit_number_of_guests_variable.get() == 3:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1 and i[2] not in ["Single", "Double"]:
+                    rooms.append((i[1], i[2]))
+
+        else:
+            for i in all_rooms:
+                if i[-1] == 0 and i[4] == 1 and i[2] not in ["Single", "Double", "Triple"]:
+                    rooms.append((i[1], i[2]))
 
         room_numbers = tuple(rooms)
-        self.select_rooms['values'] = room_numbers
+        self.select_rooms_combobox['values'] = room_numbers
 
-    def check_room_button(self):
-        if not self.select_rooms.get():
-            showwarning("Error!", "No Room Selected!")
-        else:
-            retrieved_room = sql_connection.retrieve_a_room(self.select_rooms.get())
-            self.rooms_id_variable.set(retrieved_room[0])
-            self.rooms_name_variable.set(retrieved_room[1])
-            self.rooms_type_variable.set(retrieved_room[2])
-            self.rooms_price_variable.set(retrieved_room[3])
 
     def calculate_total_price(self):
-        check_in_date = date(
-            int(self.check_in_year_variable.get()),
-            int(self.check_in_month_variable.get()),
-            int(self.check_in_day_variable.get()))
-
-        check_out_date = date(
-            int(self.check_out_year_variable.get()),
-            int(self.check_out_month_variable.get()),
-            int(self.check_out_day_variable.get()))
-
-        days = abs(check_out_date - check_in_date).days
-        days = int(days)
+        days = int(self.num_of_days.get())
 
         self.new_rooms_price_variable.get()
 
@@ -2414,7 +2480,7 @@ class GuestModifyWindow(tk.Toplevel):
             price = int(self.new_rooms_price_variable.get())
         else:
             price = int(self.current_rooms_price_variable.get())
-        self.rooms_total_price_variable.set((1 + days) * price)
+        self.rooms_total_price_variable.set(days * price)
 
     def get_guest_details_to_modify(self):
         guest_id_index = self.selected_guest_id.get()
@@ -2435,34 +2501,44 @@ class GuestModifyWindow(tk.Toplevel):
         self.current_rooms_price_variable.set(guest_details[14])
         self.billing_id_variable.set(guest_details[15])
 
-    def get_check_in_out_date(self):
-        check_in_date = str(self.check_in_date_variable.get()).split('-')
-        self.check_in_year_variable.set(check_in_date[0])
-        self.check_in_month_variable.set(check_in_date[1])
-        self.check_in_day_variable.set(check_in_date[2])
+    def validate_date(self):
+        start_date_str = self.check_in_date_variable.get()
+        end_date_str = self.check_out_date_variable.get()
 
-        check_out_date = str(self.check_out_date_variable.get()).split('-')
-        self.check_out_year_variable.set(check_out_date[0])
-        self.check_out_month_variable.set(check_out_date[1])
-        self.check_out_day_variable.set(check_out_date[2])
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(hour=0,
+                                                                               minute=0,
+                                                                               second=0,
+                                                                               microsecond=0)
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
 
-    def assign_room_button(self):
-        if not self.select_rooms.get():
-            showwarning("Error!", "No Room Selected!")
-        else:
-            retrieved_room = sql_connection.retrieve_a_room(self.select_rooms.get())
-            self.new_rooms_id_variable.set(retrieved_room[0])
-            self.new_rooms_name_variable.set(retrieved_room[1])
-            self.new_rooms_type_variable.set(retrieved_room[2])
-            self.new_rooms_price_variable.set(retrieved_room[3])
-            self.new_room_flag = True
-            self.assigned_room_variable.set("Assigned!")
+            if start_date >= end_date:
+                showwarning(title='Error', message="Start date cannot be greater than end date")
+                return False
+            else:
+                return True
+        except ValueError:
+            showwarning(title='Error', message="Invalid date format (use YYYY-MM-DD)")
+
+    def is_first_date_bigger_or_equal_than_second(self):
+        start_date_str = self.check_in_date_variable.get()
+        end_date_str = self.check_out_date_variable.get()
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            if start_date >= end_date:
+                return True
+            else:
+                return False
+        except ValueError:
+            showwarning(title='Error', message="Invalid date format (use YYYY-MM-DD)")
 
 
 class RoomCreationWindow(tk.Toplevel):
     def __init__(self, root):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
 
@@ -2487,13 +2563,15 @@ class RoomCreationWindow(tk.Toplevel):
     def create_basic_room_information_frame(self):
         """First Frame"""
         create_room_frame = ttk.Frame(self, borderwidth=10, relief='groove')
-        create_room_frame.columnconfigure((0, 1), weight=1, uniform='a')
+        create_room_frame.columnconfigure((0, 1, 2), weight=1, uniform='a')
         create_room_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
 
         # Labels Information
         ttk.Label(create_room_frame, text="Room Number:").grid(row=0, column=0, sticky='nsew')
         ttk.Label(create_room_frame, text="Room Type:").grid(row=1, column=0, sticky='nsew')
         ttk.Label(create_room_frame, text="Room Price:").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(create_room_frame, text="Room Type is [Single, Double, Triple, Family, Suite]"
+                  ).grid(row=3, columnspan=2, column=1, sticky='nsew')
 
         # Entries for Input
         ttk.Entry(
@@ -2572,8 +2650,11 @@ class RoomCreationWindow(tk.Toplevel):
 
     def next_to_managed_by_button(self):
         """First Frame 'Next' Button"""
-        self.current_frame.pack_forget()
-        self.create_room_managed_by_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        if not self.create_room_type_variable.get() in ['Single','Double','Triple','Family','Suite']:
+            showerror(title="Error!", message="Please follow room type!")
+        else:
+            self.current_frame.pack_forget()
+            self.create_room_managed_by_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
     def back_to_basic_room_information_button(self):
         self.current_frame.pack_forget()
@@ -2586,11 +2667,12 @@ class RoomCreationWindow(tk.Toplevel):
         if confirm_create_room:
             employee_list_index = self.employee_list.current()
             self.employee_id_variable.set(self.get_employee_id_from_dictionary(employee_list_index))
-            self.room_sql.create_a_room(self.create_room_name_variable.get(),
+            if not self.room_sql.create_a_room(self.create_room_name_variable.get(),
                                         self.create_room_type_variable.get(),
                                         self.create_room_price_variable.get(),
                                         self.employee_id_variable.get()
-                                        )
+                                        ):
+                showerror("Error!","Only one employee per room!")
             self.destroy()
 
     def cancel_button(self):
@@ -2620,7 +2702,8 @@ class RoomCreationWindow(tk.Toplevel):
 class RoomModificationWindow(tk.Toplevel):
     def __init__(self, root, selected_room_id):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
 
@@ -2649,7 +2732,7 @@ class RoomModificationWindow(tk.Toplevel):
     def modify_basic_room_information_frame(self):
         """First Frame"""
         modify_room_frame = ttk.Frame(self, borderwidth=10, relief='groove')
-        modify_room_frame.columnconfigure((0, 1), weight=1, uniform='a')
+        modify_room_frame.columnconfigure((0, 1,2), weight=1, uniform='a')
         modify_room_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
 
         # Labels Information
@@ -2657,6 +2740,8 @@ class RoomModificationWindow(tk.Toplevel):
         ttk.Label(modify_room_frame, text="Room Number:").grid(row=1, column=0, sticky='nsew')
         ttk.Label(modify_room_frame, text="Room Type:").grid(row=2, column=0, sticky='nsew')
         ttk.Label(modify_room_frame, text="Room Price:").grid(row=3, column=0, sticky='nsew')
+        ttk.Label(modify_room_frame, text="Room Type is [Single, Double, Triple, Family, Suite]"
+                  ).grid(row=4, columnspan=2, column=1, sticky='nsew')
 
         # Entries for Input
         ttk.Label(
@@ -2754,8 +2839,11 @@ class RoomModificationWindow(tk.Toplevel):
 
     def next_to_managed_by_button(self):
         """First Frame 'Next' Button"""
-        self.current_frame.pack_forget()
-        self.modify_room_managed_by_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        if not self.modify_room_type_variable.get() in ['Single','Double','Triple','Family','Suite']:
+            showerror(title="Error!", message="Please follow room type!")
+        else:
+            self.current_frame.pack_forget()
+            self.modify_room_managed_by_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
     def back_to_basic_room_information_button(self):
         self.current_frame.pack_forget()
@@ -2768,12 +2856,13 @@ class RoomModificationWindow(tk.Toplevel):
         if confirm_create_room:
             employee_list_index = self.employee_list.current()
             self.employee_id_variable.set(self.get_employee_id_from_dictionary(employee_list_index))
-            self.room_sql.update_room_information(self.modify_room_id_variable.get(),
+            if not self.room_sql.update_room_information(self.modify_room_id_variable.get(),
                                                   self.modify_room_name_variable.get(),
                                                   self.modify_room_type_variable.get(),
                                                   self.modify_room_price_variable.get(),
                                                   self.employee_id_variable.get()
-                                                  )
+                                                  ):
+                showerror("Error!", "Only one employee per room!")
             self.destroy()
 
     def cancel_button(self):
@@ -2812,7 +2901,8 @@ class RoomModificationWindow(tk.Toplevel):
 class ScheduleCreationWindow(tk.Toplevel):
     def __init__(self, root):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         # Window Configurations
         self.geometry('500x200')
         self.minsize(400, 200)
@@ -2988,6 +3078,8 @@ class ScheduleCreationWindow(tk.Toplevel):
 class ScheduleModificationWindow(tk.Toplevel):
     def __init__(self, root, selected_sched):
         super().__init__(root)
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
 
         # Window Configurations
         self.geometry('500x200')
@@ -3179,7 +3271,8 @@ class ScheduleModificationWindow(tk.Toplevel):
 class EmployeeCreationWindow(tk.Toplevel):
     def __init__(self, root):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
         self.title("New Employee")
@@ -3256,7 +3349,7 @@ class EmployeeCreationWindow(tk.Toplevel):
         tk.Button(
             create_employee_frame,
             text="Next",
-            command=self.next_to_assign_schedule_button
+            command=self.next_to_assign_manager_button
         ).grid(row=8, columnspan=2, column=0, sticky='nsew')
         tk.Button(
             create_employee_frame,
@@ -3267,7 +3360,7 @@ class EmployeeCreationWindow(tk.Toplevel):
         self.current_frame = create_employee_frame
         return create_employee_frame
 
-    def assign_schedule_frame(self):
+    def assign_manager_frame(self):
         """Second Frame, assigns schedules or manager to employee"""
         assign_sched_frame = ttk.Frame(self, borderwidth=10, relief='groove')
         assign_sched_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
@@ -3289,9 +3382,14 @@ class EmployeeCreationWindow(tk.Toplevel):
         ).grid(row=8, columnspan=2, column=0, sticky='nsew')
         tk.Button(
             assign_sched_frame,
+            text="Back",
+            command=self.back_to_basic_info_button
+        ).grid(row=8, column=2, sticky='nsew')
+        tk.Button(
+            assign_sched_frame,
             text="Cancel",
             command=self.cancel_create_button
-        ).grid(row=8, column=2, sticky='nsew')
+        ).grid(row=8, column=3, sticky='nsew')
 
         self.current_frame = assign_sched_frame
         return assign_sched_frame
@@ -3332,6 +3430,11 @@ class EmployeeCreationWindow(tk.Toplevel):
         ).grid(row=6, columnspan=2, column=0, sticky='nsew')
         tk.Button(
             confirm_information_frame,
+            text="Back",
+            command=self.back_to_manager_info_button
+        ).grid(row=6, column=2, sticky='nsew')
+        tk.Button(
+            confirm_information_frame,
             text="Cancel",
             command=self.cancel_create_button
         ).grid(row=6, column=3, sticky='nsew')
@@ -3343,26 +3446,46 @@ class EmployeeCreationWindow(tk.Toplevel):
     ##########################################################
     # Button Functions
 
-    def next_to_assign_schedule_button(self):
+    def next_to_assign_manager_button(self):
         """First Frame 'Next' Button"""
-        self.current_frame.pack_forget()
-        self.assign_schedule_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        if self.if_first_frame_entry_is_empty():
+            showerror(title="Error", message="Please fill in the blanks!")
+        elif not self.check_phone_number_valid():
+            showerror(title="Error", message="Invalid Phone Number")
+        elif not self.check_email_valid(self.email_variable.get()):
+            showerror(title="Error", message="Invalid Email!")
+        else:
+            self.current_frame.pack_forget()
+            self.assign_manager_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
     def next_to_confirm_info_button(self):
         """Second Frame 'Next' Button"""
         self.fullname_variable.set(f'{self.firstname_variable.get()} {self.lastname_variable.get()}')
 
         # Gets the manager name and detail
-        self.manager_id.set(self.get_employee_id_from_dictionary(self.manager_combo.current()))
-        manager_id = self.manager_id.get()
-        manager_details = self.get_employee_from_id(manager_id)
-        manager_name = f'{manager_details["firstname"]} {manager_details["lastname"]}'
-        self.manager_information_variable.set(manager_name)
 
-        print(self.job_position_variable.get())
+        if self.job_position_variable.get() == 'Manager':
+            self.manager_id.set(0)
+        elif not self.employee_sql.check_if_theres_a_manager():
+            self.current_frame.pack_forget()
+            self.confirm_employee_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        else:
+            self.manager_id.set(self.get_employee_id_from_dictionary(self.manager_combo.current()))
+            manager_id = self.manager_id.get()
+            manager_details = self.get_employee_from_id(manager_id)
+            manager_name = f'{manager_details["firstname"]} {manager_details["lastname"]}'
+            self.manager_information_variable.set(manager_name)
 
         self.current_frame.pack_forget()
         self.confirm_employee_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def back_to_basic_info_button(self):
+        self.current_frame.pack_forget()
+        self.create_basic_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+
+    def back_to_manager_info_button(self):
+        self.current_frame.pack_forget()
+        self.assign_manager_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
     def confirm_info_button(self):
         """Fourth Frame 'Submit' Button"""
@@ -3429,11 +3552,41 @@ class EmployeeCreationWindow(tk.Toplevel):
             if jobs['job_title'] == job_name:
                 return jobs['id']
 
+    def if_first_frame_entry_is_empty(self):
+        fname = self.firstname_variable.get()
+        lname = self.lastname_variable.get()
+        phone = self.phone_number_variable.get()
+        email = self.email_variable.get()
+        job = self.job_position_variable.get()
+
+        if [x for x in (fname, lname, phone, email, job) if x == ""]:
+            return True
+        else:
+            return False
+
+    def check_email_valid(self, email):
+        regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
+        if re.fullmatch(regex, email):
+            return True
+        else:
+            return False
+
+    def check_phone_number_valid(self):
+        pattern = r'^\+?[0-9]\d{1,14}$'
+        if self.phone_number_variable:
+            if re.match(pattern, self.phone_number_variable.get()):
+                return True
+            else:
+                return False
+        else:
+            return False
+
 
 class EmployeeModificationWindow(tk.Toplevel):
     def __init__(self, root, selected_employee_id):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
         self.title("New Employee")
@@ -3635,7 +3788,13 @@ class EmployeeModificationWindow(tk.Toplevel):
         """Second Frame 'Next' Button"""
         self.fullname_variable.set(f'{self.firstname_variable.get()} {self.lastname_variable.get()}')
         if not self.is_employee_a_manager():
-            if not self.manager_variable.get():
+            if self.current_job_id_var.get() == 4:
+                self.current_frame.pack_forget()
+                self.confirm_employee_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+            elif not self.employee_sql.check_if_theres_a_manager():
+                self.current_frame.pack_forget()
+                self.confirm_employee_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+            elif not self.manager_variable.get():
                 showwarning(title="Error!", message="Please select a manager!")
             else:
                 # Gets the manager name and detail
@@ -3740,7 +3899,8 @@ class EmployeeModificationWindow(tk.Toplevel):
 class JobsCreationWindow(tk.Toplevel):
     def __init__(self, root):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
         self.title("New Job")
@@ -3797,7 +3957,8 @@ class JobsCreationWindow(tk.Toplevel):
 class AssignEmployeeToBill(tk.Toplevel):
     def __init__(self, root, bill_id_index):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
         self.title("New Job")
@@ -3900,7 +4061,8 @@ class AssignEmployeeToBill(tk.Toplevel):
 class AssignEmployeeToSchedule(tk.Toplevel):
     def __init__(self, root, employee_id_index):
         super().__init__(root)
-
+        icon_path = 'images/windowsicon.ico'
+        self.iconbitmap(icon_path)
         self.geometry('500x200')
         self.minsize(400, 200)
         self.title("Assign schedule")
