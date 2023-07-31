@@ -1,19 +1,26 @@
-from tkinter import *
-number = 0
+import tkinter as tk
+from tkinter import ttk
 
-window = Tk()
-window.title("Programme")
-window.geometry('350x250')
 
-label = Label(window, text=number)
-label.grid(column=0,row=0)
+class MyApp:
+    def __init__(self, root):
+        self.root = root
+        self.options = ["Option 1", "Option 2", "Option 3"]
 
-def clicked():
-    global number
-    number += 1
-    label.config(text=number)
+        self.combobox = ttk.Combobox(root, values=self.options)
+        self.combobox.set("Select an option")  # Set a default value
 
-button = Button(window, text="Push Me", command=clicked)
-button.grid(column=1, row=2)
+        self.combobox.pack()
 
-window.mainloop()
+        # Bind the event function to the <<ComboboxSelected>> event
+        self.combobox.bind("<<ComboboxSelected>>", self.on_combobox_select)
+
+    def on_combobox_select(self, event):
+        selected_item = self.combobox.get()
+        print("Selected Item:", selected_item)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = MyApp(root)
+    root.mainloop()

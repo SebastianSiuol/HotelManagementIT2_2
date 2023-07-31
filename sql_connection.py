@@ -504,7 +504,7 @@ class CreateAGuest:
         try:
             create_billing_query = """
                 INSERT INTO 
-                Billing(total_charge, payment_info, availability) 
+                Billing(total_charge, payment_method, availability) 
                 VALUES (?, ?, ?)"""
             c.execute(create_billing_query, (total_price, payment_info, 1))
             self.conn.commit()
@@ -924,10 +924,11 @@ class ScheduleTabSQL:
         """SQL Query for retrieving a schedule"""
         self.conn = sqlite3.connect('database/hotelDB.db')
         c = self.conn.cursor()
+        a_schedule = []
 
         try:
             retrieve_schedules_query = """
-                SELECT start_date, end_date, availability
+                SELECT *
                 FROM SCHEDULE 
                 WHERE schedule_id = ?
             """
@@ -963,6 +964,109 @@ class ScheduleTabSQL:
         finally:
             c.close()
             self.conn.close()
+
+    def assign_schedule_to_employee(self, employee_id, schedule_id):
+        """"SQL Query for assigning a schedule to an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        bool_flag = True
+        try:
+            assign_schedule_query = """
+                            INSERT INTO AssignedSchedule(employee_id, schedule_id, status)
+                            VALUES (?, ?, ?)
+                            """
+            c.execute(assign_schedule_query,(employee_id, schedule_id, 'Active'))
+            self.conn.commit()
+
+        except sqlite3.IntegrityError:
+            print("Cannot have the same schedule for the same employee!")
+            bool_flag = False
+
+        finally:
+            c.close()
+            self.conn.close()
+            return bool_flag
+
+    def delete_an_assigned_schedule(self, employee_id, schedule_id):
+        """"SQL Query for deleting an assigned schedule to an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        bool_flag = False # Assume deletion failed
+        try:
+            assign_schedule_query = """
+                DELETE FROM AssignedSchedule
+                WHERE employee_id = ? and schedule_id = ?
+                                    """
+            c.execute(assign_schedule_query, (employee_id, schedule_id,))
+            rows_affected = c.rowcount
+
+            if rows_affected > 0:
+                bool_flag = True
+
+            self.conn.commit()
+
+        except sqlite3.Error:
+            print("Something went wrong!")
+
+        finally:
+            c.close()
+            self.conn.close()
+            return bool_flag
+
+    def retrieve_assigned_employees_on_a_schedule(self, schedule_id):
+        """SQL Query for deleting an assigned schedule to an employee"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        try:
+            retrieve_assigned_employees_query = """
+                        SELECT * FROM(
+                        SELECT 
+                        Employee.employee_id,
+                        (Employee.first_name||' '||Employee.last_name) AS 'Full Name',
+                        Schedule.schedule_id
+                        FROM Employee
+                        INNER JOIN AssignedSchedule
+                        ON Employee.employee_id = AssignedSchedule.employee_id 
+                        INNER JOIN Schedule
+                        ON AssignedSchedule.schedule_id = Schedule.schedule_id
+                        ) WHERE schedule_id = ?
+                                            """
+            c.execute(retrieve_assigned_employees_query, (schedule_id,))
+            retrieved_employees = c.fetchall()
+
+        except sqlite3.Error:
+            print("Something went wrong!")
+
+        finally:
+            c.close()
+            self.conn.close()
+            return retrieved_employees
+
+    def is_employee_is_on_selected_schedule(self, employee_id, schedule_id):
+        """"SQL Query for checking if employee is assigned on the selected schedule"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        bool_flag = True # Assume employee is indeed still assigned on the selected sched
+        try:
+            assign_schedule_query = """
+                        SELECT COUNT(*)
+                        FROM AssignedSchedule
+                        WHERE employee_id = ? and schedule_id = ?
+                                            """
+            c.execute(assign_schedule_query, (employee_id, schedule_id,))
+            fetch_count = c.fetchall()[0]
+
+            if fetch_count[0] == 0:
+                bool_flag = False
+
+        except sqlite3.Error:
+            print("Something went wrong!")
+            bool_flag = False
+
+        finally:
+            c.close()
+            self.conn.close()
+            return bool_flag
 
 
 class EmployeeTabSQL:

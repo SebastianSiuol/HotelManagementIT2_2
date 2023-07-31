@@ -314,11 +314,11 @@ class RoomTab(ttk.Frame):
 
         self.rooms_treeview = None
         self.modify_frame = ttk.Frame()
-        self.rooms_list(self).pack(side='left', expand=True, fill='both')
+        self.rooms_table(self).pack(side='left', expand=True, fill='both')
         self.rooms_widgets(self).pack(side='left', expand=True, fill='both')
         self.pack()
 
-    def rooms_list(self, frame):
+    def rooms_table(self, frame):
         rooms_table_frame = ttk.Frame(master=frame)
         rooms_table_frame.configure(borderwidth=10, relief='groove')
         self.rooms_treeview = ttk.Treeview(
@@ -535,7 +535,7 @@ class ScheduleTab(ttk.Frame):
         super().__init__(master=root)
 
         # Entry Variables
-        self.schedule_id_variable = tk.StringVar()
+        self.schedule_id_variable = tk.IntVar()
         self.schedule_start_date_variable = tk.StringVar()
         self.schedule_end_date_variable = tk.StringVar()
         self.schedule_availability_variable = tk.StringVar()
@@ -546,32 +546,47 @@ class ScheduleTab(ttk.Frame):
         # SQL Instance
         self.schedule_sql = ScheduleTabSQL()
 
-        self.schedules_list = tk.Listbox
-        self.schedule_table(self).pack(side='left', fill='both')
+        self.schedules_treeview = ttk.Treeview()
+        self.assigned_employees_treeview = ttk.Treeview()
+        self.schedule_table().pack(side='left', fill='both')
+        self.assigned_employees_frame().pack(side='left', expand=True, fill='both')
         self.schedule_widgets(self).pack(side='left', expand=True, fill='both')
+
         self.pack()
 
-    def schedule_table(self, frame):
-        schedule_list_frame = ttk.Frame(master=frame)
-        schedule_list_frame.configure(borderwidth=10, relief='groove')
+    def schedule_table(self):
+        schedule_table_frame = ttk.Frame(self)
+        schedule_table_frame.configure(borderwidth=10, relief='groove')
 
         # Label
         ttk.Label(
-            schedule_list_frame,
+            schedule_table_frame,
             text='Schedules',
             font='Arial'
         ).pack(fill='x')
 
-        # Schedule List
-        schedule_list_items = tk.StringVar()
-        self.schedules_list = tk.Listbox(
-            schedule_list_frame,
-            listvariable=schedule_list_items
+        self.schedules_treeview = ttk.Treeview(
+            schedule_table_frame,
+            columns=('schedule_id', 'start_date', 'end_date'),
+            show='headings',
+            selectmode='browse'
         )
-        self.populate_schedule_list()
 
-        self.schedules_list.pack(expand=True, fill='both')
-        return schedule_list_frame
+        self.schedules_treeview.heading('schedule_id', text='Schedule ID')
+        self.schedules_treeview.heading('start_date', text='Start Date')
+        self.schedules_treeview.heading('end_date', text='End Date')
+
+        self.schedules_treeview.column('schedule_id', width=80)
+        self.schedules_treeview.column('start_date', width=80)
+        self.schedules_treeview.column('end_date', width=80)
+
+        self.schedules_treeview.pack(expand=True, fill='both')
+
+        self.schedules_treeview.bind('<ButtonRelease-1>', self.schedule_treeview_click)
+
+        self.populate_schedule_table()
+
+        return schedule_table_frame
 
     def schedule_widgets(self, frame):
         schedule_widgets_frame = ttk.Frame(master=frame)
@@ -655,64 +670,118 @@ class ScheduleTab(ttk.Frame):
 
         return schedule_details_frame
 
+    def assigned_employees_frame(self):
+        assigned_employees_table_frame = ttk.Frame(self)
+        assigned_employees_table_frame.configure(borderwidth=10, relief='groove')
+        ttk.Label(
+            assigned_employees_table_frame,
+            text='Assigned Employees',
+            font='Arial'
+        ).pack(fill='x')
+        self.assigned_employees_treeview = ttk.Treeview(
+            assigned_employees_table_frame,
+            columns=('employee_id', 'full_name'),
+            show='headings',
+            selectmode='none'
+        )
+
+        self.assigned_employees_treeview.heading('employee_id', text='Employee ID')
+        self.assigned_employees_treeview.heading('full_name', text='Full Name')
+
+        self.assigned_employees_treeview.column('employee_id', width=100)
+        self.assigned_employees_treeview.column('full_name', width=180)
+
+        self.assigned_employees_treeview.pack(expand=True, fill='both')
+
+        return assigned_employees_table_frame
+
+    # Frames
+    ##########################################################
+    # Button Functions
+
     def new_schedule_button(self):
         ScheduleCreationWindow(self)
 
     def open_schedule_button(self):
-        if not self.schedules_list.curselection():
-            showwarning("Error!", "No schedule selected!")
+        if not self.schedules_treeview.focus():
+            showwarning(title="Error!",
+                        message='No schedule is selected!')
         else:
-            selected_schedule_index = self.schedules_list.curselection()
-            selected_schedule = self.schedules[selected_schedule_index[0]]
-            self.schedule_id_variable.set(selected_schedule['id'])
-            self.schedule_start_date_variable.set(selected_schedule['start_date'])
-            self.schedule_end_date_variable.set(selected_schedule['end_date'])
-            self.schedule_availability_variable.set(selected_schedule['availability'])
+            highlighted_schedule = self.schedules_treeview.focus()
+            selected_schedule = self.schedules_treeview.item(highlighted_schedule)
+            selected_schedule_id = selected_schedule.get('values')[0]
+            retrieved_schedule = self.schedule_sql.retrieve_a_schedule(selected_schedule_id)
+
+            self.schedule_id_variable.set(retrieved_schedule[0])
+            self.schedule_start_date_variable.set(retrieved_schedule[1])
+            self.schedule_end_date_variable.set(retrieved_schedule[2])
+            self.schedule_availability_variable.set(retrieved_schedule[3])
+            self.populate_assigned_employees()
 
     def modify_schedule_button(self):
-        if not self.schedules_list.curselection():
-            showwarning("Error!", "No schedule selected!")
+        if not self.schedules_treeview.focus():
+            showwarning(title="Error!",
+                        message='No schedule is selected!')
         else:
-            selected_schedule_index = self.schedules_list.curselection()
-            selected_schedule = self.schedules[selected_schedule_index[0]]
-            ScheduleModificationWindow(self, selected_schedule['id'])
+            highlighted_schedule = self.schedules_treeview.focus()
+            selected_schedule = self.schedules_treeview.item(highlighted_schedule)
+            selected_schedule_id = selected_schedule.get('values')[0]
+            ScheduleModificationWindow(self, selected_schedule_id)
 
     def delete_schedule_button(self):
-        if not self.schedules_list.curselection():
-            showwarning("Error!", "No schedule selected!")
+        if not self.schedules_treeview.focus():
+            showwarning(title="Error!",
+                        message='No schedule is selected!')
         else:
-            selected_schedule_index = self.schedules_list.curselection()
-            selected_schedule = self.schedules[selected_schedule_index[0]]
+            highlighted_schedule = self.schedules_treeview.focus()
+            selected_schedule = self.schedules_treeview.item(highlighted_schedule)
+            selected_schedule_id = selected_schedule.get('values')[0]
             confirm_delete = askyesno(title="Delete schedule?",
-                                      message=f"You are deleting schedule ID: {selected_schedule['id']}.\n"
+                                      message=f"You are deleting schedule ID: {selected_schedule_id}.\n"
                                               f"Confirm?")
             if confirm_delete:
                 confirm_hard_delete = askyesno(
                     title="Delete schedule?",
-                    message=f"Schedule ID:{selected_schedule['id']} will be deleted permanently\n"
+                    message=f"Schedule ID:{selected_schedule_id} will be deleted permanently\n"
                             f"Are you sure?")
                 if confirm_hard_delete:
-                    self.schedule_sql.hard_delete_a_schedule(selected_schedule['id'])
+                    self.schedule_sql.hard_delete_a_schedule(selected_schedule_id)
 
     def refresh_schedule_button(self):
-        self.schedules_list.delete(0, 'end')
-        self.schedules.clear()
-        self.populate_schedule_list()
+        for schedule in self.schedules_treeview.get_children():
+            self.schedules_treeview.delete(schedule)
 
-    def populate_schedule_list(self):
+        self.populate_schedule_table()
+
+    def populate_schedule_table(self):
         """Populate the combo box of schedules"""
         all_schedules = self.schedule_sql.retrieve_all_schedule()
 
-        for i in all_schedules:
-            schedules_details = {"id": i[0],
-                                 "start_date": i[1],
-                                 "end_date": i[2],
-                                 "availability": i[3]}
+        for schedules in all_schedules:
+            self.schedules_treeview.insert(
+                parent='',
+                index=tk.END,
+                iid=None,
+                values=(schedules[0], schedules[1], schedules[2])
+            )
 
-            self.schedules.append(schedules_details)
+    def populate_assigned_employees(self):
+        for employees in self.assigned_employees_treeview.get_children():
+            self.assigned_employees_treeview.delete(employees)
 
-        for items in self.schedules:
-            self.schedules_list.insert(tk.END, items['start_date'])
+        selected_schedule_id = self.schedule_id_variable.get()
+        all_employees = self.schedule_sql.retrieve_assigned_employees_on_a_schedule(selected_schedule_id)
+
+        for employees in all_employees:
+            self.assigned_employees_treeview.insert(
+                parent='',
+                index=tk.END,
+                iid=None,
+                values=(employees[0], employees[1])
+            )
+
+    def schedule_treeview_click(self, event):
+        self.open_schedule_button()
 
 
 class EmployeeTab(ttk.Frame):
@@ -900,8 +969,6 @@ class EmployeeTab(ttk.Frame):
             selected_employee_id = selected_employee.get('values')[0]
             retrieved_employee = self.employee_sql.retrieve_a_specific_employee(selected_employee_id)
 
-            print(retrieved_employee)
-
             self.employee_id_variable.set(retrieved_employee[0])
             self.employee_firstname_variable.set(retrieved_employee[1])
             self.employee_lastname_variable.set(retrieved_employee[2])
@@ -969,6 +1036,10 @@ class EmployeeTab(ttk.Frame):
             showwarning(title="Error!",
                         message='No Employee is selected!')
         else:
+            highlighted_employee = self.employee_treeview.focus()
+            selected_employee = self.employee_treeview.item(highlighted_employee)
+            selected_employee_id = selected_employee.get('values')[0]
+            AssignEmployeeToSchedule(self, employee_id_index=selected_employee_id)
             pass
 
 
@@ -1160,7 +1231,6 @@ class BillingTab(ttk.Frame):
             return True
         else:
             return False
-
 
 
 class JobsTab(ttk.Frame):
@@ -3015,8 +3085,8 @@ class ScheduleModificationWindow(tk.Toplevel):
     def retrieve_schedule_information(self):
         retrieved_schedule = self.sched_sql.retrieve_a_schedule(self.selected_schedule_id.get())
 
-        self.modify_start_date_variable.set(retrieved_schedule[0])
-        self.modify_end_date_variable.set(retrieved_schedule[1])
+        self.modify_start_date_variable.set(retrieved_schedule[1])
+        self.modify_end_date_variable.set(retrieved_schedule[2])
 
 
 class EmployeeCreationWindow(tk.Toplevel):
@@ -3738,6 +3808,155 @@ class AssignEmployeeToBill(tk.Toplevel):
                 self.employee_id_variable.set(item['id'])
 
         return selected_emp_name
+
+
+class AssignEmployeeToSchedule(tk.Toplevel):
+    def __init__(self, root, employee_id_index):
+        super().__init__(root)
+
+        self.geometry('500x200')
+        self.minsize(400, 200)
+        self.title("Assign schedule")
+
+        self.employee_id_variable = tk.IntVar()
+        self.schedule_id_variable = tk.IntVar()
+        self.schedules_combo = ttk.Combobox()
+        self.schedules_combo_variable = tk.StringVar()
+        self.is_employee_assigned = tk.StringVar()
+
+        self.employee_id_variable.set(employee_id_index)
+
+        self.schedule_sql = ScheduleTabSQL()
+        self.employee_sql = EmployeeTabSQL()
+
+        self.schedules = {}
+
+        self.current_frame = ttk.Frame()
+        self.assign_employee_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        self.grab_set()
+
+    def assign_employee_frame(self):
+        assign_emp_sched_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        assign_emp_sched_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        assign_emp_sched_frame.rowconfigure((0, 1, 2, 3, 4), weight=1, uniform='a')
+
+        ttk.Label(assign_emp_sched_frame, text="Employee ID:").grid(row=0, column=0, sticky='nsew')
+        ttk.Label(assign_emp_sched_frame, text="Assign to:").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(assign_emp_sched_frame, text="Schedule ID:").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(assign_emp_sched_frame, textvariable=self.is_employee_assigned).grid(row=3, column=1, sticky='nsew')
+
+        tk.Entry(
+            assign_emp_sched_frame,
+            textvariable=self.employee_id_variable,
+            state='readonly'
+        ).grid(row=0, column=1, sticky='ew')
+
+        self.schedules_combo = ttk.Combobox(
+            assign_emp_sched_frame,
+            textvariable=self.schedules_combo_variable,
+            state='readonly'
+        )
+
+        self.schedules_combo.grid(row=1, column=1, sticky='ew')
+        self.schedules_combo.bind("<<ComboboxSelected>>", self.on_combobox_select)
+        self.populate_schedule_combo()
+
+        tk.Entry(
+            assign_emp_sched_frame,
+            textvariable=self.schedule_id_variable,
+            state='readonly'
+        ).grid(row=2, column=1, sticky='ew')
+
+
+        tk.Button(
+            assign_emp_sched_frame,
+            text="Remove Assignment",
+            command=self.remove_employee_button
+        ).grid(row=3, column=3, sticky='ew')
+
+        tk.Button(
+            assign_emp_sched_frame,
+            text="Confirm",
+            command=self.confirm_employee_button
+        ).grid(row=4, columnspan=2, column=0, sticky='ew')
+
+        tk.Button(
+            assign_emp_sched_frame,
+            text="Cancel",
+            command=self.cancel_employee_button
+        ).grid(row=4, columnspan=2, column=2, sticky='ew')
+
+        return assign_emp_sched_frame
+
+    # Frames
+    ##########################################################
+    # Button Functions
+
+    def confirm_employee_button(self):
+        if not self.schedules_combo.get():
+            showerror(title="Error!", message="Please select a schedule!")
+        else:
+            selected_schedule = (self.schedules_combo.get()).split(" : ")
+            schedule_to_search = selected_schedule[0]
+            selected_schedule_id = self.schedules[schedule_to_search]['id']
+
+            self.schedule_id_variable.set(selected_schedule_id)
+
+            if not self.schedule_sql.assign_schedule_to_employee(employee_id=self.employee_id_variable.get(),
+                                                                 schedule_id=self.schedule_id_variable.get()):
+                showerror(title="Error!", message="Cannot have the same schedule for the same employee!")
+            else:
+                showinfo(title="Task Successful", message="Schedule assigned successfully!")
+                self.destroy()
+
+    def remove_employee_button(self):
+        if not self.schedules_combo.get():
+            showerror(title="Error!", message="Please select a schedule!")
+        else:
+            selected_schedule = (self.schedules_combo.get()).split(" : ")
+            schedule_to_search = selected_schedule[0]
+            selected_schedule_id = self.schedules[schedule_to_search]['id']
+
+            self.schedule_id_variable.set(selected_schedule_id)
+
+            if self.schedule_sql.delete_an_assigned_schedule(employee_id=self.employee_id_variable.get(),
+                                                             schedule_id=self.schedule_id_variable.get()):
+                showinfo(title="Task Successful", message="Assigned schedule deleted successfully!")
+            else:
+                showerror(title="Error!", message="Cannot delete non-existing assigned schedule")
+
+    def cancel_employee_button(self):
+        self.destroy()
+
+    def on_combobox_select(self, event):
+        selected_schedule = (self.schedules_combo.get()).split(" : ")
+        schedule_to_search = selected_schedule[0]
+        selected_schedule_id = self.schedules[schedule_to_search]['id']
+        self.schedule_id_variable.set(selected_schedule_id)
+
+        if self.schedule_sql.is_employee_is_on_selected_schedule(self.employee_id_variable.get(),
+                                                                 self.schedule_id_variable.get()):
+            self.is_employee_assigned.set("Already Assigned!")
+        else:
+            self.is_employee_assigned.set("")
+
+    # Button Functions
+    ##########################################################
+    # Logics
+
+    def populate_schedule_combo(self):
+        retrieved_schedules = self.schedule_sql.retrieve_all_schedule()
+        schedules_for_list = []
+        schedules_details = {}
+        for schedules in retrieved_schedules:
+            self.schedules[f'{schedules[1]}'] = {"id": schedules[0],
+                                 "startdate": schedules[1],
+                                 "enddate": schedules[2],
+                                  "availability": schedules[3]
+                                 }
+            schedules_for_list.append(f'{schedules[1]} : {schedules[2]}')
+
+        self.schedules_combo['values'] = schedules_for_list
 
 
 App()
