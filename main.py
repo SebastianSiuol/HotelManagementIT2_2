@@ -15,10 +15,13 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
 
+        icon_path = 'images/windowsicon.ico'
+
         self.title('Hotel Management')
         # width x height
         self.geometry('1000x600')
         self.minsize(800, 600)
+        self.iconbitmap(icon_path)
 
         self.tab_menu = HotelTabs(self)
         self.mainloop()
@@ -1299,12 +1302,6 @@ class JobsTab(ttk.Frame):
 
         tk.Button(
             jobs_widgets_container_frame,
-            text='Modify',
-            command=self.modify_jobs_button
-        ).pack(side='left', expand=True, fill='both', padx=2)
-
-        tk.Button(
-            jobs_widgets_container_frame,
             text='Delete',
             command=self.delete_jobs_button
         ).pack(side='left', expand=True, fill='both', padx=2)
@@ -1355,9 +1352,6 @@ class JobsTab(ttk.Frame):
 
     def open_jobs_button(self):
         self.populate_jobs_table()
-
-    def modify_jobs_button(self):
-        pass
 
     def delete_jobs_button(self):
         if not self.jobs_treeview.focus():
@@ -1435,12 +1429,13 @@ class GuestCreationWindow(tk.Toplevel):
         # Check-in/out Variables
         self.check_in_date_variable = tk.StringVar()
         self.check_out_date_variable = tk.StringVar()
-        self.check_in_year_variable = tk.StringVar()
-        self.check_in_month_variable = tk.StringVar()
-        self.check_in_day_variable = tk.StringVar()
-        self.check_out_year_variable = tk.StringVar()
-        self.check_out_month_variable = tk.StringVar()
-        self.check_out_day_variable = tk.StringVar()
+        self.num_of_days = tk.IntVar()
+        # self.check_in_year_variable = tk.StringVar()
+        # self.check_in_month_variable = tk.StringVar()
+        # self.check_in_day_variable = tk.StringVar()
+        # self.check_out_year_variable = tk.StringVar()
+        # self.check_out_month_variable = tk.StringVar()
+        # self.check_out_day_variable = tk.StringVar()
 
         self.rooms = []
         self.select_type_guest = ttk.Combobox()
@@ -1587,44 +1582,65 @@ class GuestCreationWindow(tk.Toplevel):
 
     def create_checkout_date_information_frame(self):
         """Third Frame"""
-        checkout_frame = ttk.Frame(self, borderwidth=10, relief='groove')
-        checkout_frame.columnconfigure((0, 1, 2, 3, 4), weight=1, uniform='a')
-        checkout_frame.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1, uniform='a')
+        create_schedule_frame = ttk.Frame(self, borderwidth=10, relief='groove')
+        create_schedule_frame.columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        create_schedule_frame.rowconfigure((0, 1, 2, 3, 4, 5), weight=1, uniform='a')
 
-        # Labels
-        ttk.Label(checkout_frame, text='Check-in Date').grid(row=1, column=0, sticky='nsew')
-        ttk.Label(checkout_frame, text='Check-out Date').grid(row=2, column=0, sticky='nsew')
-        ttk.Label(checkout_frame, text='Year').grid(row=0, column=1, sticky='nsew')
-        ttk.Label(checkout_frame, text='Month').grid(row=0, column=2, sticky='nsew')
-        ttk.Label(checkout_frame, text='Day').grid(row=0, column=3, sticky='nsew')
+        # Labels with
+        ttk.Label(create_schedule_frame, text="Check In Date").grid(row=1, column=0, sticky='nsew')
+        ttk.Label(create_schedule_frame, text="Check Out Date").grid(row=2, column=0, sticky='nsew')
+        ttk.Label(create_schedule_frame, text='Number of Days').grid(row=3, column=0, sticky='nsew')
+        ttk.Label(create_schedule_frame, textvariable=self.num_of_days).grid(row=3, column=1, sticky='nsew')
 
-        # Entries
-        ttk.Entry(checkout_frame, textvariable=self.check_in_year_variable).grid(row=1, column=1, sticky='ew')
-        ttk.Entry(checkout_frame, textvariable=self.check_in_month_variable).grid(row=1, column=2, sticky='ew')
-        ttk.Entry(checkout_frame, textvariable=self.check_in_day_variable).grid(row=1, column=3, sticky='ew')
-        ttk.Entry(checkout_frame, textvariable=self.check_out_year_variable).grid(row=2, column=1, sticky='ew')
-        ttk.Entry(checkout_frame, textvariable=self.check_out_month_variable).grid(row=2, column=2, sticky='ew')
-        ttk.Entry(checkout_frame, textvariable=self.check_out_day_variable).grid(row=2, column=3, sticky='ew')
+        # Check-In Date Entry
+        ttk.Entry(
+            create_schedule_frame,
+            textvariable=self.check_in_date_variable,
+        ).grid(row=1, column=1, sticky='nsew')
 
-        # Buttons
-        tk.Button(checkout_frame, text="Today", command=self.get_date_button).grid(row=1, column=4, sticky='ew')
+        # Check-Out Date Entry
+        ttk.Entry(
+            create_schedule_frame,
+            textvariable=self.check_out_date_variable,
+        ).grid(row=2, column=1, sticky='nsew')
 
+        # Today Button
         tk.Button(
-            checkout_frame,
-            text="Next",
+            create_schedule_frame,
+            text="Today",
+            command=self.today_button
+        ).grid(row=1, column=3, sticky='nsew')
+
+        # Add Button
+        tk.Button(
+            create_schedule_frame,
+            text="Add",
+            command=self.add_a_day_button
+        ).grid(row=2, column=3, sticky='nsew')
+
+        # Subtract Button
+        tk.Button(
+            create_schedule_frame,
+            text="Subtract",
+            command=self.subtract_a_day_button
+        ).grid(row=3, column=3, sticky='nsew')
+
+        # Confirm Button
+        tk.Button(
+            create_schedule_frame,
+            text="Confirm",
             command=self.next_to_confirm_guest_button
-        ).grid(row=6, columnspan=2, column=0, sticky='ew')
+        ).grid(row=5, columnspan=2, column=0, sticky='nsew')
 
+        # Cancel Button
         tk.Button(
-            checkout_frame,
-            text="Back",
-            command=self.back_to_create_rooms_date_button
-        ).grid(row=6, columnspan=2, column=2, sticky='ew')
+            create_schedule_frame,
+            text="Cancel",
+            command=self.cancel_create_button
+        ).grid(row=5, columnspan=2, column=2, sticky='nsew')
 
-        tk.Button(checkout_frame, text="Cancel", command=self.cancel_create_button).grid(row=6, column=4, sticky='ew')
-
-        self.current_frame = checkout_frame
-        return checkout_frame
+        self.current_frame = create_schedule_frame
+        return create_schedule_frame
 
     def create_confirm_information_frame(self):
         """Fourth Frame"""
@@ -1642,14 +1658,6 @@ class GuestCreationWindow(tk.Toplevel):
         ttk.Label(confirm_frame, text="Check-out:").grid(row=6, column=0, sticky='nsew')
         ttk.Label(confirm_frame, text="Total Price:").grid(row=7, column=0, sticky='nsew')
 
-        self.check_in_date_variable.set(
-            f'{self.check_in_year_variable.get()}-'
-            f'{self.check_in_month_variable.get()}-{self.check_in_day_variable.get()}'
-        )
-        self.check_out_date_variable.set(
-            f'{self.check_out_year_variable.get()}-'
-            f'{self.check_out_month_variable.get()}-{self.check_out_day_variable.get()}'
-        )
         self.calculate_total_price()
         # Labels again with variables
         ttk.Label(confirm_frame, textvariable=self.fullname_variable).grid(row=1, column=1, sticky='nsew')
@@ -1678,18 +1686,22 @@ class GuestCreationWindow(tk.Toplevel):
         self.current_frame = confirm_frame
         return confirm_frame
 
+    # Frames
+    ##########################################################
+    # Button Functions
+
     def next_to_create_rooms_button(self):
         """First Frame 'Next' Button"""
-        print(self.phone_number_variable.get())
-        if self.if_first_frame_entry_is_empty():
-            showwarning("Error!", "Please fill in all the blanks!")
-        elif not self.check_phone_number_valid():
-            showwarning("Error!", "Phone Number is Not Valid!")
-        elif not self.check_email_valid(self.email_variable.get()):
-            showwarning("Error!", "Enter Valid Email!")
-        else:
-            self.current_frame.pack_forget()
-            self.create_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
+        # print(self.phone_number_variable.get())
+        # if self.if_first_frame_entry_is_empty():
+        #     showwarning("Error!", "Please fill in all the blanks!")
+        # elif not self.check_phone_number_valid():
+        #     showwarning("Error!", "Phone Number is Not Valid!")
+        # elif not self.check_email_valid(self.email_variable.get()):
+        #     showwarning("Error!", "Enter Valid Email!")
+        # else:
+        self.current_frame.pack_forget()
+        self.create_room_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
 
     def next_to_checkout_date_button(self):
         """Second Frame 'Next' Button"""
@@ -1710,22 +1722,27 @@ class GuestCreationWindow(tk.Toplevel):
 
     def next_to_confirm_guest_button(self):
         """Third Frame 'Next' Button"""
-        try:
-            yy1 = int(self.check_in_year_variable.get())
-            mm1 = int(self.check_in_month_variable.get())
-            dd1 = int(self.check_in_day_variable.get())
-            yy2 = int(self.check_out_year_variable.get())
-            mm2 = int(self.check_out_month_variable.get())
-            dd2 = int(self.check_out_day_variable.get())
-            if not self.check_date_valid(yy1, mm1, dd1):
-                showwarning(title="Error", message="Improper Date!")
-            elif not self.check_date_valid(yy2, mm2, dd2):
-                showwarning(title="Error", message="Improper Date!")
+        if not self.check_in_date_variable.get():
+            showwarning(title="Error!", message="Start Date is Empty!")
+        elif not self.check_out_date_variable.get():
+            showwarning(title="Error!", message="End Date is Empty!")
+        else:
+            if not self.validate_date():
+                showwarning(title="Error!", message="Please try again!")
             else:
+                # Variables to that will be used calculate days
+
+                check_in_date_string = self.check_in_date_variable.get()
+                check_out_date_string = self.check_out_date_variable.get()
+
+                check_in_date_datetime = datetime.strptime(check_in_date_string, '%Y-%m-%d')
+                check_out_date_datetime = datetime.strptime(check_out_date_string, '%Y-%m-%d')
+
+                number_of_days = check_out_date_datetime - check_in_date_datetime
+                self.num_of_days.set(number_of_days.days)
+
                 self.current_frame.pack_forget()
                 self.create_confirm_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
-        except:
-            showwarning(title="Error", message="Improper Date!")
 
     def back_to_create_rooms_date_button(self):
         self.current_frame.pack_forget()
@@ -1758,23 +1775,7 @@ class GuestCreationWindow(tk.Toplevel):
     def back_to_create_checkout_date_button(self):
         self.current_frame.pack_forget()
         self.create_checkout_date_information_frame().pack(expand=True, fill='both', padx=5, pady=5)
-        pass
 
-    def calculate_total_price(self):
-        check_in_date = date(
-            int(self.check_in_year_variable.get()),
-            int(self.check_in_month_variable.get()),
-            int(self.check_in_day_variable.get()))
-
-        check_out_date = date(
-            int(self.check_out_year_variable.get()),
-            int(self.check_out_month_variable.get()),
-            int(self.check_out_day_variable.get()))
-
-        days = abs(check_out_date - check_in_date).days
-        days = int(days)
-        price = int(self.rooms_price_variable.get())
-        self.rooms_total_price_variable.set((1 + days) * price)
 
     def check_room_button(self):
         if not self.select_rooms_list.get():
@@ -1787,16 +1788,65 @@ class GuestCreationWindow(tk.Toplevel):
             self.rooms_type_variable.set(selected_room[2])
             self.rooms_price_variable.set(selected_room[3])
 
-    def get_date_button(self):
-        full_date = datetime.now()
-        today_date = str(full_date.date()).split("-")
-        self.check_in_year_variable.set(today_date[0])
-        self.check_in_month_variable.set(today_date[1])
-        self.check_in_day_variable.set(today_date[2])
+    def today_button(self):
+        """Get date today"""
+        full_datetime_object = datetime.now()
+        yy_mm_dd_datetime_object = full_datetime_object.date()
+        self.check_in_date_variable.set(yy_mm_dd_datetime_object)
+        self.check_out_date_variable.set(yy_mm_dd_datetime_object + timedelta(days=1))
+        self.num_of_days.set("1")
+
+    def add_a_day_button(self):
+        """Adds a day"""
+        if self.is_first_date_bigger_or_equal_than_second():
+            initial_date_str = self.check_in_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.check_out_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to that will be used calculate days
+        check_in_day_str = self.check_in_date_variable.get()
+        check_in_day_object = datetime.strptime(check_in_day_str, '%Y-%m-%d')
+
+        #
+        added_date_object = initial_date_object + timedelta(days=1)
+        self.check_out_date_variable.set(added_date_object.strftime('%Y-%m-%d'))
+        days_object = added_date_object - check_in_day_object
+        self.num_of_days.set(days_object.days)
+
+    def subtract_a_day_button(self):
+        """Subtracts a day"""
+        if self.is_first_date_bigger_or_equal_than_second():
+            initial_date_str = self.check_in_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+        else:
+            initial_date_str = self.check_out_date_variable.get()
+            initial_date_object = datetime.strptime(initial_date_str, '%Y-%m-%d')
+
+        # Variables to calculate days
+        initial_day_str = self.check_in_date_variable.get()
+        initial_day_object = datetime.strptime(initial_day_str, '%Y-%m-%d')
+        today_object = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if initial_date_object > today_object:
+            new_date_object = initial_date_object - timedelta(days=1)
+            self.check_out_date_variable.set(new_date_object.strftime('%Y-%m-%d'))
+            days_object = new_date_object - initial_day_object
+            self.num_of_days.set(days_object.days)
 
     def cancel_create_button(self):
         self.grab_release()
         self.destroy()
+
+    # Buttons
+    ##########################################################
+    # Logics
+
+    def calculate_total_price(self):
+        days = int(self.num_of_days.get())
+        price = int(self.rooms_price_variable.get())
+        self.rooms_total_price_variable.set(days * price)
 
     def populate_room_listbox(self):
         all_rooms = sql_connection.retrieve_rooms_list()
@@ -1833,14 +1883,6 @@ class GuestCreationWindow(tk.Toplevel):
         guest_type = ['Walk In', 'Reservation']
         self.select_type_guest['values'] = guest_type
 
-    def check_date_valid(self, year, month, day):
-        try:
-            date(year, month, day)
-            return True
-        except ValueError as e:
-            print("Something went wrong! Error: ", e)
-            return False
-
     def check_email_valid(self, email):
         regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
         if re.fullmatch(regex, email):
@@ -1871,6 +1913,38 @@ class GuestCreationWindow(tk.Toplevel):
             return True
         else:
             return False
+
+    def validate_date(self):
+        start_date_str = self.check_in_date_variable.get()
+        end_date_str = self.check_out_date_variable.get()
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(hour=0,
+                                                                               minute=0,
+                                                                               second=0,
+                                                                               microsecond=0)
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+
+            if start_date >= end_date:
+                showwarning(title='Error', message="Start date cannot be greater than end date")
+                return False
+            else:
+                return True
+        except ValueError:
+            showwarning(title='Error', message="Invalid date format (use YYYY-MM-DD)")
+
+    def is_first_date_bigger_or_equal_than_second(self):
+        start_date_str = self.check_in_date_variable.get()
+        end_date_str = self.check_out_date_variable.get()
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            if start_date >= end_date:
+                return True
+            else:
+                return False
+        except ValueError:
+            showwarning(title='Error', message="Invalid date format (use YYYY-MM-DD)")
 
 
 class GuestModifyWindow(tk.Toplevel):
@@ -3867,7 +3941,6 @@ class AssignEmployeeToSchedule(tk.Toplevel):
             state='readonly'
         ).grid(row=2, column=1, sticky='ew')
 
-
         tk.Button(
             assign_emp_sched_frame,
             text="Remove Assignment",
@@ -3950,10 +4023,10 @@ class AssignEmployeeToSchedule(tk.Toplevel):
         schedules_details = {}
         for schedules in retrieved_schedules:
             self.schedules[f'{schedules[1]}'] = {"id": schedules[0],
-                                 "startdate": schedules[1],
-                                 "enddate": schedules[2],
-                                  "availability": schedules[3]
-                                 }
+                                                 "startdate": schedules[1],
+                                                 "enddate": schedules[2],
+                                                 "availability": schedules[3]
+                                                 }
             schedules_for_list.append(f'{schedules[1]} : {schedules[2]}')
 
         self.schedules_combo['values'] = schedules_for_list
