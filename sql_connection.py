@@ -422,7 +422,12 @@ def retrieve_a_bill_and_guest(bill_id_index):
                 (Guest.first_name||' '||Guest.last_name) as "Full name",
                 Billing.total_charge,
                 Guest.payment_info,
-                Billing.availability
+                CASE
+                    WHEN Billing.availability = 0 THEN 'Paid'
+                    WHEN Billing.availability = 1 THEN 'Ongoing'
+                    ELSE 'Unknown'
+                    END AS availability,
+                    Billing.employee_id
                 FROM Guest
                 INNER JOIN Visit
                 ON Guest.guest_id = Visit.guest_id
@@ -1413,8 +1418,6 @@ class EmployeeTabSQL:
                 return True
 
 
-
-
 class JobsTabSQL:
     def __init__(self):
         self.conn = None
@@ -1604,7 +1607,7 @@ class BillTabSQL:
 
             does_it_have_employee = c.fetchall()[0]
 
-            if does_it_have_employee[0] is None:
+            if does_it_have_employee[0] in [None, 0, "",'None']:
                 bool_flag = False
 
         except sqlite3.Error as e:
@@ -1616,3 +1619,28 @@ class BillTabSQL:
             self.conn.close()
 
             return bool_flag
+
+    def is_bill_paid(self, billing_id):
+        """SQL Query to check if bill is already paid"""
+        self.conn = sqlite3.connect('database/hotelDB.db')
+        c = self.conn.cursor()
+        bool_flag = True
+
+        try:
+            is_bill_paid_query = """
+                            SELECT availability
+                            FROM Billing
+                            WHERE billing_id = ?"""
+            c.execute(is_bill_paid_query, (billing_id,))
+            is_bill_paid = c.fetchall()[0]
+            if is_bill_paid[0] in [None, 0, "", 'None']:
+             bool_flag = False
+
+        except sqlite3.Error as e:
+            print("Something went wrong! Error: ", e)
+
+        finally:
+            c.close()
+            self.conn.close()
+            return bool_flag
+

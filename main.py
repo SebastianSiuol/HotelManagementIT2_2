@@ -1063,8 +1063,11 @@ class BillingTab(ttk.Frame):
         self.bills_guest_variable = tk.StringVar()
         self.bills_total_price_variable = tk.StringVar()
         self.bills_payment_info_variable = tk.StringVar()
+        self.bills_employee_variable = tk.StringVar()
+        self.bills_availability_variable = tk.StringVar()
 
         self.bills_sql = BillTabSQL()
+        self.employee_sql= EmployeeTabSQL()
 
         self.bills_table(self).pack(side='left', expand=True, fill='both')
         self.bills_widgets(self).pack(side='left', expand=True, fill='both')
@@ -1090,7 +1093,7 @@ class BillingTab(ttk.Frame):
         self.bills_treeview.column('guest_name', width=50)
         self.bills_treeview.column('total_price', width=50)
 
-        self.populate_bill_list()
+        self.populate_bill_treeview()
         self.bills_treeview.pack(expand=True, fill='both')
         return bills_table_frame
 
@@ -1143,27 +1146,45 @@ class BillingTab(ttk.Frame):
         ttk.Label(bills_details_frame, text="Guest Name:").grid(row=1, column=0, sticky='nsew')
         ttk.Label(bills_details_frame, text="Bill Total:").grid(row=2, column=0, sticky='nsew')
         ttk.Label(bills_details_frame, text="Guest Payment Info:").grid(row=3, column=0, sticky='nsew')
+        ttk.Label(bills_details_frame, text="Processed by:").grid(row=4, column=0, sticky='nsew')
+        ttk.Label(bills_details_frame, text="Availability:").grid(row=5, column=0, sticky='nsew')
+
 
         # Labels containing what are information shown
-        ttk.Label(
+        ttk.Entry(
             bills_details_frame,
-            textvariable=self.bills_id_variable
-        ).grid(row=0, column=1, sticky='nsew')
+            textvariable=self.bills_id_variable,
+            state='readonly'
+        ).grid(row=0, column=1, sticky='ew')
 
-        ttk.Label(
+        ttk.Entry(
             bills_details_frame,
-            textvariable=self.bills_guest_variable
-        ).grid(row=1, column=1, sticky='nsew')
+            textvariable=self.bills_guest_variable,
+            state='readonly'
+        ).grid(row=1, column=1, sticky='ew')
 
-        ttk.Label(
+        ttk.Entry(
             bills_details_frame,
-            textvariable=self.bills_total_price_variable
-        ).grid(row=2, column=1, sticky='nsew')
+            textvariable=self.bills_total_price_variable,
+            state='readonly'
+        ).grid(row=2, column=1, sticky='ew')
 
-        ttk.Label(
+        ttk.Entry(
             bills_details_frame,
-            textvariable=self.bills_payment_info_variable
-        ).grid(row=3, column=1, sticky='nsew')
+            textvariable=self.bills_payment_info_variable,
+            state='readonly'
+        ).grid(row=3, column=1, sticky='ew')
+        ttk.Entry(
+            bills_details_frame,
+            textvariable=self.bills_employee_variable,
+            state='readonly'
+        ).grid(row=4, column=1, sticky='ew')
+
+        ttk.Entry(
+            bills_details_frame,
+            textvariable=self.bills_availability_variable,
+            state='readonly'
+        ).grid(row=5, column=1, sticky='ew')
 
         return bills_details_frame
 
@@ -1185,6 +1206,13 @@ class BillingTab(ttk.Frame):
             self.bills_guest_variable.set(retrieved_bill[1])
             self.bills_total_price_variable.set(retrieved_bill[2])
             self.bills_payment_info_variable.set(retrieved_bill[3])
+            self.bills_availability_variable.set(retrieved_bill[4])
+
+            if retrieved_bill[5] in [0, None, "", "None"]:
+                self.bills_employee_variable.set("No Employee")
+            else:
+                retrieved_employee = self.employee_sql.retrieve_a_specific_employee(retrieved_bill[5])
+                self.bills_employee_variable.set(f'{retrieved_employee[1]} {retrieved_employee[2]}')
 
     def pay_bills_button(self):
         if not self.bills_treeview.focus():
@@ -1195,20 +1223,23 @@ class BillingTab(ttk.Frame):
             selected_bill = self.bills_treeview.item(bills_index)
             selected_bill_id = selected_bill.get('values')[0]
             selected_bill_guest = selected_bill.get('values')[1]
-            if self.check_if_bill_has_employee(selected_bill_id):
-                confirm_pay = askyesno(title="Process the bill?",
-                                       message=f"{selected_bill_guest}'s bill is about to be paid.\nConfirm?")
-                if confirm_pay:
-                    self.bills_sql.pay_bills(selected_bill_id)
-                    self.refresh_bills_table()
+            if not self.bills_sql.is_bill_paid(selected_bill_id):
+                showwarning("Process cannot be done!", "Bill is already paid!")
             else:
-                showwarning(title="Error!",
-                            message='Selected bill should have an employee before procesing!')
+                if self.check_if_bill_has_employee(selected_bill_id):
+                    confirm_pay = askyesno(title="Process the bill?",
+                                           message=f"{selected_bill_guest}'s bill is about to be paid.\nConfirm?")
+                    if confirm_pay:
+                        self.bills_sql.pay_bills(selected_bill_id)
+                        self.refresh_bills_table()
+                else:
+                    showwarning(title="Error!",
+                                message='Selected bill should have an employee before procesing!')
 
     def refresh_bills_table(self):
         for item in self.bills_treeview.get_children():
             self.bills_treeview.delete(item)
-        self.populate_bill_list()
+        self.populate_bill_treeview()
 
     def assign_employee_button(self):
         if not self.bills_treeview.focus():
@@ -1218,23 +1249,21 @@ class BillingTab(ttk.Frame):
             bills_index = self.bills_treeview.focus()
             selected_bill = self.bills_treeview.item(bills_index)
             selected_bill_id = selected_bill.get('values')[0]
-            selected_bill_guest = selected_bill.get('values')[1]
             AssignEmployeeToBill(self, selected_bill_id)
 
     # Button Functions
     ##########################################################
     # Logics
 
-    def populate_bill_list(self):
+    def populate_bill_treeview(self):
         bill_items = sql_connection.retrieve_bills_and_guest()
         for i in bill_items:
-            if i[-1] == 1:
-                self.bills_treeview.insert(
-                    parent='',
-                    index=tk.END,
-                    iid=None,
-                    values=(i[0], i[1], i[2])
-                )
+            self.bills_treeview.insert(
+                parent='',
+                index=tk.END,
+                iid=None,
+                values=(i[0], i[1], i[2])
+            )
 
     def check_if_bill_has_employee(self, bill_id):
         if self.bills_sql.does_bill_have_employee(bill_id):
@@ -2614,8 +2643,15 @@ class RoomCreationWindow(tk.Toplevel):
         # Labels Information
         ttk.Label(
             managed_by_room_frame,
+            text="Employee List"
+        ).grid(row=0, column=1, sticky='nsew')
+
+        ttk.Label(
+            managed_by_room_frame,
             text="Employee"
-        ).grid(row=0, column=0, sticky='nsew')
+        ).grid(row=1, column=0, sticky='nsew')
+
+
 
         # Employee ComboBox
         self.employee_list = ttk.Combobox(
@@ -4017,15 +4053,19 @@ class AssignEmployeeToBill(tk.Toplevel):
     # Button Functions
 
     def bills_confirm_button(self):
-        self.retrieve_employee_id_from_selected_combo()
-        confirm_assign = askyesno(title="Employee Assignment?",
-                                  message=f"You will assign an employee to bill ID: {self.bills_id_variable.get()}\n"
-                                          f"Confirm?")
-        if confirm_assign:
-            self.bills_sql.update_bill_record_employee(self.bills_id_variable.get(),
-                                                       self.employee_id_variable.get()
-                                                       )
-            self.destroy()
+        if not self.employee_combo_variable.get():
+            showerror("Error!","Please select an employee!")
+        else:
+            self.retrieve_employee_id_from_selected_combo()
+            confirm_assign = askyesno(title="Employee Assignment?",
+                                      message=f"You will assign an employee to bill "
+                                              f"ID: {self.bills_id_variable.get()}\n"
+                                              f"Confirm?")
+            if confirm_assign:
+                self.bills_sql.update_bill_record_employee(self.bills_id_variable.get(),
+                                                           self.employee_id_variable.get()
+                                                           )
+                self.destroy()
 
     def bills_cancel_button(self):
         self.destroy()
